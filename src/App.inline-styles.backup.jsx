@@ -1,44 +1,20 @@
 import { useState, useEffect } from 'react'
 import { SPEND_CATEGORIES, RISK_TOLERANCE_DEFAULTS, REVIEW_CAPACITY_DEFAULTS } from './constants'
-import { cn } from './lib/utils'
 
-const STEP_SECTIONS = [
-  {
-    section: 'Upload Policy',
-    steps: [
-      { id: 'upload', label: 'Upload Document', number: 1 }
-    ]
-  },
-  {
-    section: 'Define Audit Rules',
-    steps: [
-      { id: 'amount-thresholds', label: 'Amount Thresholds', number: 2 },
-      { id: 'expense-categories', label: 'Expense Categories', number: 3 },
-      { id: 'risk-tolerance', label: 'Risk Tolerance', number: 4 },
-      { id: 'fraud-detection', label: 'Fraud Detection', number: 5 },
-      { id: 'spending-patterns', label: 'Spending Patterns', number: 6 },
-      { id: 'amount-thresholds-audit', label: 'Audit Thresholds', number: 7 },
-      { id: 'category-rules', label: 'Category Rules', number: 8 }
-    ]
-  },
-  {
-    section: 'Outline Review Instructions',
-    steps: [
-      { id: 'review-capacity', label: 'Review Capacity', number: 9 },
-      { id: 'auto-close', label: 'Auto-Close Rules', number: 10 },
-      { id: 'escalation', label: 'Escalation Triggers', number: 11 }
-    ]
-  },
-  {
-    section: 'Download Documents',
-    steps: [
-      { id: 'results', label: 'Review & Download', number: 12 }
-    ]
-  }
+const STEPS = [
+  'upload',
+  'amount-thresholds',
+  'expense-categories',
+  'risk-tolerance',
+  'fraud-detection',
+  'spending-patterns',
+  'amount-thresholds-audit',
+  'category-rules',
+  'review-capacity',
+  'auto-close',
+  'escalation',
+  'results'
 ]
-
-// Flatten steps for indexing
-const STEPS = STEP_SECTIONS.flatMap(section => section.steps)
 
 function App() {
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
@@ -130,7 +106,7 @@ function App() {
     }
   }, [answers.reviewCapacity])
 
-  const currentStep = STEPS[currentStepIndex].id
+  const currentStep = STEPS[currentStepIndex]
 
   const nextStep = () => {
     if (currentStepIndex < STEPS.length - 1) {
@@ -142,10 +118,6 @@ function App() {
     if (currentStepIndex > 0) {
       setCurrentStepIndex(currentStepIndex - 1)
     }
-  }
-
-  const goToStep = (index) => {
-    setCurrentStepIndex(index)
   }
 
   const handleAnswer = (key, value) => {
@@ -344,148 +316,106 @@ ${answers.autoCloseFirstTime ? `  - Types: ${answers.autoCloseFirstTimeTypes.inc
     URL.revokeObjectURL(url)
   }
 
+  const styles = {
+    container: {
+      minHeight: '100vh',
+      background: 'linear-gradient(to bottom, #f8fafc, #e2e8f0)',
+      padding: '40px 20px',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+    },
+    card: {
+      maxWidth: '900px',
+      margin: '0 auto',
+      background: 'white',
+      borderRadius: '12px',
+      boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+      overflow: 'hidden'
+    },
+    header: {
+      padding: '32px 40px',
+      borderBottom: '1px solid #e2e8f0'
+    },
+    title: {
+      fontSize: '28px',
+      marginBottom: '8px',
+      color: '#1e293b'
+    },
+    subtitle: {
+      fontSize: '16px',
+      color: '#64748b'
+    },
+    content: {
+      padding: '40px'
+    },
+    buttonGroup: {
+      display: 'flex',
+      gap: '12px',
+      paddingTop: '24px',
+      borderTop: '1px solid #e2e8f0',
+      marginTop: '32px'
+    },
+    button: {
+      padding: '12px 24px',
+      fontSize: '16px',
+      fontWeight: '600',
+      borderRadius: '8px',
+      cursor: 'pointer',
+      border: 'none',
+      transition: 'background 0.2s'
+    },
+    primaryButton: {
+      background: '#2563eb',
+      color: 'white'
+    },
+    secondaryButton: {
+      background: '#e2e8f0',
+      color: '#475569'
+    },
+    progressBar: {
+      height: '4px',
+      background: '#e2e8f0',
+      position: 'relative'
+    },
+    progressFill: {
+      height: '100%',
+      background: '#2563eb',
+      transition: 'width 0.3s',
+      width: `${((currentStepIndex + 1) / STEPS.length) * 100}%`
+    }
+  }
+
   const { auditRules, reviewSOP } = currentStep === 'results' ? generateDocuments() : { auditRules: '', reviewSOP: '' }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-neutral-50 to-neutral-100 flex">
-      {/* Left Sidebar Navigation */}
-      <div className="w-64 bg-white border-r border-neutral-200 p-6 flex flex-col">
-        <div className="mb-6">
-          <h1 className="text-lg font-semibold text-neutral-950">Audit Policy Setup</h1>
-          <p className="text-xs text-neutral-600 mt-1">Configure audit rules</p>
+    <div style={styles.container}>
+      <div style={styles.card}>
+        <div style={styles.progressBar}>
+          <div style={styles.progressFill}></div>
         </div>
-
-        {/* Stepper with Sections */}
-        <nav className="flex-1 space-y-4 overflow-y-auto">
-          {STEP_SECTIONS.map((section, sectionIndex) => {
-            // Find the global index range for this section
-            const sectionStartIndex = STEPS.findIndex(s => s.id === section.steps[0].id)
-            const sectionEndIndex = STEPS.findIndex(s => s.id === section.steps[section.steps.length - 1].id)
-            const isSectionActive = currentStepIndex >= sectionStartIndex && currentStepIndex <= sectionEndIndex
-            const isSectionCompleted = currentStepIndex > sectionEndIndex
-
-            return (
-              <div key={sectionIndex}>
-                {/* Section Header */}
-                <div className="mb-1.5">
-                  <h3 className={cn(
-                    "text-[10px] font-semibold uppercase tracking-wider px-1",
-                    isSectionActive && "text-orange-700",
-                    isSectionCompleted && "text-green-700",
-                    !isSectionActive && !isSectionCompleted && "text-neutral-500"
-                  )}>
-                    {section.section}
-                  </h3>
-                </div>
-
-                {/* Section Steps */}
-                <div className="space-y-0.5">
-                  {section.steps.map((step) => {
-                    const globalIndex = STEPS.findIndex(s => s.id === step.id)
-                    const isActive = globalIndex === currentStepIndex
-                    const isCompleted = globalIndex < currentStepIndex
-                    const isAccessible = globalIndex <= currentStepIndex
-
-                    return (
-                      <button
-                        key={step.id}
-                        onClick={() => isAccessible && goToStep(globalIndex)}
-                        disabled={!isAccessible}
-                        className={cn(
-                          "w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-left transition-all",
-                          isActive && "bg-orange-50 border border-orange-200",
-                          !isActive && isCompleted && "hover:bg-neutral-50 cursor-pointer",
-                          !isActive && !isCompleted && "opacity-50 cursor-not-allowed"
-                        )}
-                      >
-                        {/* Step number or checkmark */}
-                        <div
-                          className={cn(
-                            "flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-medium",
-                            isActive && "bg-orange-600 text-white",
-                            isCompleted && "bg-green-600 text-white",
-                            !isActive && !isCompleted && "bg-neutral-200 text-neutral-600"
-                          )}
-                        >
-                          {isCompleted ? (
-                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                          ) : (
-                            step.number
-                          )}
-                        </div>
-
-                        {/* Step label */}
-                        <div className="flex-1 min-w-0">
-                          <div
-                            className={cn(
-                              "text-xs font-medium truncate",
-                              isActive && "text-orange-900",
-                              !isActive && isCompleted && "text-neutral-700",
-                              !isActive && !isCompleted && "text-neutral-500"
-                            )}
-                          >
-                            {step.label}
-                          </div>
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            )
-          })}
-        </nav>
-
-        {/* Progress indicator */}
-        <div className="mt-6 pt-4 border-t border-neutral-200">
-          <div className="flex items-center justify-between text-xs mb-1.5">
-            <span className="text-neutral-600">Progress</span>
-            <span className="font-medium text-neutral-950">
-              {currentStepIndex + 1} of {STEPS.length}
-            </span>
-          </div>
-          <div className="h-1.5 bg-neutral-200 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-orange-600 transition-all duration-300"
-              style={{ width: `${((currentStepIndex + 1) / STEPS.length) * 100}%` }}
-            ></div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-3xl mx-auto py-8 px-6">
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
 
         {/* STEP 0: Upload */}
         {currentStep === 'upload' && (
           <>
-            <div className="px-10 py-8 border-b border-neutral-200">
-              <h2 className="text-3xl font-semibold text-neutral-950 mb-2">Upload Your Expense Policy</h2>
-              <p className="text-base text-neutral-600">We'll help you create audit rules and review instructions that enforce your policy</p>
+            <div style={styles.header}>
+              <h2 style={styles.title}>Upload Your Expense Policy</h2>
+              <p style={styles.subtitle}>We'll help you create audit rules and review instructions that enforce your policy</p>
             </div>
-            <div className="px-10 py-10">
-              <div className="mb-8">
+            <div style={styles.content}>
+              <div style={{ marginBottom: '32px' }}>
                 <input
                   type="file"
                   onChange={handleFileUpload}
                   accept=".pdf,.doc,.docx,.txt"
-                  className="text-sm"
+                  style={{ fontSize: '14px' }}
                 />
                 {policyFile && (
-                  <p className="mt-3 text-green-600 text-sm">
+                  <p style={{ marginTop: '12px', color: '#16a34a', fontSize: '14px' }}>
                     ✓ Uploaded: {policyFile}
                   </p>
                 )}
               </div>
-              <div className="flex gap-3 pt-6 border-t border-neutral-200 mt-8">
-                <button
-                  onClick={nextStep}
-                  className="h-10 px-4 rounded-xl bg-neutral-950 text-neutral-50 hover:bg-neutral-900 shadow-sm transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-950/50"
-                >
+              <div style={styles.buttonGroup}>
+                <button onClick={nextStep} style={{ ...styles.button, ...styles.primaryButton }}>
                   {policyFile ? 'Continue' : 'Skip for Now'}
                 </button>
               </div>
@@ -496,11 +426,11 @@ ${answers.autoCloseFirstTime ? `  - Types: ${answers.autoCloseFirstTimeTypes.inc
         {/* STEP 1: Amount Thresholds */}
         {currentStep === 'amount-thresholds' && (
           <>
-            <div className="px-10 py-8 border-b border-neutral-200">
-              <h2 className="text-3xl font-semibold text-neutral-950 mb-2">Step 1: Amount Thresholds</h2>
-              <p className="text-base text-neutral-600">Confirm or adjust key policy thresholds</p>
+            <div style={styles.header}>
+              <h2 style={styles.title}>Step 1: Amount Thresholds</h2>
+              <p style={styles.subtitle}>Confirm or adjust key policy thresholds</p>
             </div>
-            <div className="px-10 py-10">
+            <div style={styles.content}>
               <QuestionInput
                 label="Receipt required above"
                 id="receiptThreshold"
@@ -534,17 +464,11 @@ ${answers.autoCloseFirstTime ? `  - Types: ${answers.autoCloseFirstTimeTypes.inc
                 unit="USD"
               />
 
-              <div className="flex gap-3 pt-6 border-t border-neutral-200 mt-8">
-                <button
-                  onClick={prevStep}
-                  className="h-10 px-4 rounded-xl bg-neutral-100 text-neutral-900 hover:bg-neutral-200 transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-300/50"
-                >
+              <div style={styles.buttonGroup}>
+                <button onClick={prevStep} style={{ ...styles.button, ...styles.secondaryButton }}>
                   Back
                 </button>
-                <button
-                  onClick={nextStep}
-                  className="h-10 px-4 rounded-xl bg-neutral-950 text-neutral-50 hover:bg-neutral-900 shadow-sm transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-950/50"
-                >
+                <button onClick={nextStep} style={{ ...styles.button, ...styles.primaryButton }}>
                   Continue
                 </button>
               </div>
@@ -555,11 +479,11 @@ ${answers.autoCloseFirstTime ? `  - Types: ${answers.autoCloseFirstTimeTypes.inc
         {/* STEP 2: Expense Categories */}
         {currentStep === 'expense-categories' && (
           <>
-            <div className="px-10 py-8 border-b border-neutral-200">
-              <h2 className="text-3xl font-semibold text-neutral-950 mb-2">Step 2: Expense Categories</h2>
-              <p className="text-base text-neutral-600">Which expense categories are most relevant to your business?</p>
+            <div style={styles.header}>
+              <h2 style={styles.title}>Step 2: Expense Categories</h2>
+              <p style={styles.subtitle}>Which expense categories are most relevant to your business?</p>
             </div>
-            <div className="px-10 py-10">
+            <div style={styles.content}>
               {SPEND_CATEGORIES.map(category => (
                 <CategoryCheckbox
                   key={category.id}
@@ -569,17 +493,14 @@ ${answers.autoCloseFirstTime ? `  - Types: ${answers.autoCloseFirstTimeTypes.inc
                 />
               ))}
 
-              <div className="flex gap-3 pt-6 border-t border-neutral-200 mt-8">
-                <button
-                  onClick={prevStep}
-                  className="h-10 px-4 rounded-xl bg-neutral-100 text-neutral-900 hover:bg-neutral-200 transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-300/50"
-                >
+              <div style={styles.buttonGroup}>
+                <button onClick={prevStep} style={{ ...styles.button, ...styles.secondaryButton }}>
                   Back
                 </button>
                 <button
                   onClick={nextStep}
+                  style={{ ...styles.button, ...styles.primaryButton }}
                   disabled={answers.selectedCategories.length === 0}
-                  className="h-10 px-4 rounded-xl bg-neutral-950 text-neutral-50 hover:bg-neutral-900 shadow-sm transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-950/50 disabled:opacity-50 disabled:pointer-events-none"
                 >
                   Continue
                 </button>
@@ -591,12 +512,12 @@ ${answers.autoCloseFirstTime ? `  - Types: ${answers.autoCloseFirstTimeTypes.inc
         {/* STEP 3: Risk Tolerance */}
         {currentStep === 'risk-tolerance' && (
           <>
-            <div className="px-10 py-8 border-b border-neutral-200">
-              <h2 className="text-3xl font-semibold text-neutral-950 mb-2">Step 3: Risk Tolerance</h2>
-              <p className="text-base text-neutral-600">This sets default thresholds for all audit rules</p>
+            <div style={styles.header}>
+              <h2 style={styles.title}>Step 3: Risk Tolerance</h2>
+              <p style={styles.subtitle}>This sets default thresholds for all audit rules</p>
             </div>
-            <div className="px-10 py-10">
-              <label className="block mb-4 text-base font-medium text-neutral-700">
+            <div style={styles.content}>
+              <label style={{ display: 'block', marginBottom: '16px', fontSize: '16px', fontWeight: '600', color: '#1e293b' }}>
                 What's your tolerance for policy violations?
               </label>
               {[
@@ -612,17 +533,11 @@ ${answers.autoCloseFirstTime ? `  - Types: ${answers.autoCloseFirstTimeTypes.inc
                 />
               ))}
 
-              <div className="flex gap-3 pt-6 border-t border-neutral-200 mt-8">
-                <button
-                  onClick={prevStep}
-                  className="h-10 px-4 rounded-xl bg-neutral-100 text-neutral-900 hover:bg-neutral-200 transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-300/50"
-                >
+              <div style={styles.buttonGroup}>
+                <button onClick={prevStep} style={{ ...styles.button, ...styles.secondaryButton }}>
                   Back
                 </button>
-                <button
-                  onClick={nextStep}
-                  className="h-10 px-4 rounded-xl bg-neutral-950 text-neutral-50 hover:bg-neutral-900 shadow-sm transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-950/50"
-                >
+                <button onClick={nextStep} style={{ ...styles.button, ...styles.primaryButton }}>
                   Continue
                 </button>
               </div>
@@ -633,28 +548,22 @@ ${answers.autoCloseFirstTime ? `  - Types: ${answers.autoCloseFirstTimeTypes.inc
         {/* STEP 4: Fraud Detection */}
         {currentStep === 'fraud-detection' && (
           <>
-            <div className="px-10 py-8 border-b border-neutral-200">
-              <h2 className="text-3xl font-semibold text-neutral-950 mb-2">Step 4: Fraud Detection</h2>
-              <p className="text-base text-neutral-600">These fraud signals are always flagged</p>
+            <div style={styles.header}>
+              <h2 style={styles.title}>Step 4: Fraud Detection</h2>
+              <p style={styles.subtitle}>These fraud signals are always flagged</p>
             </div>
-            <div className="px-10 py-10">
+            <div style={styles.content}>
               <YesNoToggle label="Duplicate receipts (same receipt submitted multiple times)" id="fraudDuplicates" answers={answers} handleAnswer={handleAnswer} />
               <YesNoToggle label="AI-generated or modified receipts" id="fraudAI" answers={answers} handleAnswer={handleAnswer} />
               <YesNoToggle label="Receipt amount mismatches (claimed > receipt amount)" id="fraudMismatches" answers={answers} handleAnswer={handleAnswer} />
               <YesNoToggle label="Cash-equivalent purchases (gift cards, money transfers, crypto)" id="fraudCashEquiv" answers={answers} handleAnswer={handleAnswer} />
               <YesNoToggle label="Split transactions (multiple charges just below approval threshold)" id="fraudSplits" answers={answers} handleAnswer={handleAnswer} />
 
-              <div className="flex gap-3 pt-6 border-t border-neutral-200 mt-8">
-                <button
-                  onClick={prevStep}
-                  className="h-10 px-4 rounded-xl bg-neutral-100 text-neutral-900 hover:bg-neutral-200 transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-300/50"
-                >
+              <div style={styles.buttonGroup}>
+                <button onClick={prevStep} style={{ ...styles.button, ...styles.secondaryButton }}>
                   Back
                 </button>
-                <button
-                  onClick={nextStep}
-                  className="h-10 px-4 rounded-xl bg-neutral-950 text-neutral-50 hover:bg-neutral-900 shadow-sm transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-950/50"
-                >
+                <button onClick={nextStep} style={{ ...styles.button, ...styles.primaryButton }}>
                   Continue
                 </button>
               </div>
@@ -665,11 +574,11 @@ ${answers.autoCloseFirstTime ? `  - Types: ${answers.autoCloseFirstTimeTypes.inc
         {/* STEP 5: Spending Patterns */}
         {currentStep === 'spending-patterns' && (
           <>
-            <div className="px-10 py-8 border-b border-neutral-200">
-              <h2 className="text-3xl font-semibold text-neutral-950 mb-2">Step 5: Spending Patterns</h2>
-              <p className="text-base text-neutral-600">Configure pattern-based detection rules</p>
+            <div style={styles.header}>
+              <h2 style={styles.title}>Step 5: Spending Patterns</h2>
+              <p style={styles.subtitle}>Configure pattern-based detection rules</p>
             </div>
-            <div className="px-10 py-10">
+            <div style={styles.content}>
               <YesNoToggle label="Flag when user spends >2x their historical average?" id="patternAnomalies" answers={answers} handleAnswer={handleAnswer} />
               <YesNoToggle label="Flag spend in distant locations with no travel context?" id="patternGeoMismatch" answers={answers} handleAnswer={handleAnswer} />
               {answers.patternGeoMismatch && (
@@ -680,17 +589,11 @@ ${answers.autoCloseFirstTime ? `  - Types: ${answers.autoCloseFirstTimeTypes.inc
               <QuestionInput label="Flag first-time vendor spend above" id="newVendorAmount" answers={answers} handleAnswer={handleAnswer} />
               <QuestionInput label="Flag when same user has cumulative violations above" id="repeatViolationAmount" answers={answers} handleAnswer={handleAnswer} />
 
-              <div className="flex gap-3 pt-6 border-t border-neutral-200 mt-8">
-                <button
-                  onClick={prevStep}
-                  className="h-10 px-4 rounded-xl bg-neutral-100 text-neutral-900 hover:bg-neutral-200 transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-300/50"
-                >
+              <div style={styles.buttonGroup}>
+                <button onClick={prevStep} style={{ ...styles.button, ...styles.secondaryButton }}>
                   Back
                 </button>
-                <button
-                  onClick={nextStep}
-                  className="h-10 px-4 rounded-xl bg-neutral-950 text-neutral-50 hover:bg-neutral-900 shadow-sm transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-950/50"
-                >
+                <button onClick={nextStep} style={{ ...styles.button, ...styles.primaryButton }}>
                   Continue
                 </button>
               </div>
@@ -701,34 +604,28 @@ ${answers.autoCloseFirstTime ? `  - Types: ${answers.autoCloseFirstTimeTypes.inc
         {/* STEP 6: Amount Thresholds (Audit) */}
         {currentStep === 'amount-thresholds-audit' && (
           <>
-            <div className="px-10 py-8 border-b border-neutral-200">
-              <h2 className="text-3xl font-semibold text-neutral-950 mb-2">Step 6: Audit Amount Thresholds</h2>
-              <p className="text-base text-neutral-600">These values are auto-filled based on your risk tolerance</p>
+            <div style={styles.header}>
+              <h2 style={styles.title}>Step 6: Audit Amount Thresholds</h2>
+              <p style={styles.subtitle}>These values are auto-filled based on your risk tolerance</p>
             </div>
-            <div className="px-10 py-10">
-              <h4 className="text-base font-medium text-neutral-700 mb-3">High-priority (immediate escalation):</h4>
+            <div style={styles.content}>
+              <h4 style={{ fontSize: '16px', marginBottom: '12px', color: '#475569' }}>High-priority (immediate escalation):</h4>
               <QuestionInput label="Single violation over" id="highPrioritySingle" answers={answers} handleAnswer={handleAnswer} />
 
-              <h4 className="text-base font-medium text-neutral-700 mt-6 mb-3">Medium-priority (investigate):</h4>
+              <h4 style={{ fontSize: '16px', marginTop: '24px', marginBottom: '12px', color: '#475569' }}>Medium-priority (investigate):</h4>
               <QuestionInput label="Large single transaction" id="largeTransaction" answers={answers} handleAnswer={handleAnswer} />
               <QuestionInput label="Missing receipt above" id="missingReceipt" answers={answers} handleAnswer={handleAnswer} />
               <QuestionInput label="Missing memo/business purpose above" id="missingMemo" answers={answers} handleAnswer={handleAnswer} />
 
-              <h4 className="text-base font-medium text-neutral-700 mt-6 mb-3">Low-priority (pattern monitoring):</h4>
+              <h4 style={{ fontSize: '16px', marginTop: '24px', marginBottom: '12px', color: '#475569' }}>Low-priority (pattern monitoring):</h4>
               <QuestionInput label="Small violation threshold" id="smallViolation" answers={answers} handleAnswer={handleAnswer} />
               <QuestionInput label="Pattern threshold (cumulative)" id="patternThreshold" answers={answers} handleAnswer={handleAnswer} />
 
-              <div className="flex gap-3 pt-6 border-t border-neutral-200 mt-8">
-                <button
-                  onClick={prevStep}
-                  className="h-10 px-4 rounded-xl bg-neutral-100 text-neutral-900 hover:bg-neutral-200 transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-300/50"
-                >
+              <div style={styles.buttonGroup}>
+                <button onClick={prevStep} style={{ ...styles.button, ...styles.secondaryButton }}>
                   Back
                 </button>
-                <button
-                  onClick={nextStep}
-                  className="h-10 px-4 rounded-xl bg-neutral-950 text-neutral-50 hover:bg-neutral-900 shadow-sm transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-950/50"
-                >
+                <button onClick={nextStep} style={{ ...styles.button, ...styles.primaryButton }}>
                   Continue
                 </button>
               </div>
@@ -743,18 +640,19 @@ ${answers.autoCloseFirstTime ? `  - Types: ${answers.autoCloseFirstTimeTypes.inc
             handleAnswer={handleAnswer}
             nextStep={nextStep}
             prevStep={prevStep}
+            styles={styles}
           />
         )}
 
         {/* STEP 8: Review Capacity */}
         {currentStep === 'review-capacity' && (
           <>
-            <div className="px-10 py-8 border-b border-neutral-200">
-              <h2 className="text-3xl font-semibold text-neutral-950 mb-2">Step 8: Review Capacity</h2>
-              <p className="text-base text-neutral-600">This sets default thresholds for auto-close and escalation</p>
+            <div style={styles.header}>
+              <h2 style={styles.title}>Step 8: Review Capacity</h2>
+              <p style={styles.subtitle}>This sets default thresholds for auto-close and escalation</p>
             </div>
-            <div className="px-10 py-10">
-              <label className="block mb-4 text-base font-medium text-neutral-700">
+            <div style={styles.content}>
+              <label style={{ display: 'block', marginBottom: '16px', fontSize: '16px', fontWeight: '600', color: '#1e293b' }}>
                 How many cases can your team realistically review per month?
               </label>
               {[
@@ -770,17 +668,11 @@ ${answers.autoCloseFirstTime ? `  - Types: ${answers.autoCloseFirstTimeTypes.inc
                 />
               ))}
 
-              <div className="flex gap-3 pt-6 border-t border-neutral-200 mt-8">
-                <button
-                  onClick={prevStep}
-                  className="h-10 px-4 rounded-xl bg-neutral-100 text-neutral-900 hover:bg-neutral-200 transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-300/50"
-                >
+              <div style={styles.buttonGroup}>
+                <button onClick={prevStep} style={{ ...styles.button, ...styles.secondaryButton }}>
                   Back
                 </button>
-                <button
-                  onClick={nextStep}
-                  className="h-10 px-4 rounded-xl bg-neutral-950 text-neutral-50 hover:bg-neutral-900 shadow-sm transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-950/50"
-                >
+                <button onClick={nextStep} style={{ ...styles.button, ...styles.primaryButton }}>
                   Continue
                 </button>
               </div>
@@ -795,6 +687,7 @@ ${answers.autoCloseFirstTime ? `  - Types: ${answers.autoCloseFirstTimeTypes.inc
             handleAnswer={handleAnswer}
             nextStep={nextStep}
             prevStep={prevStep}
+            styles={styles}
           />
         )}
 
@@ -805,6 +698,7 @@ ${answers.autoCloseFirstTime ? `  - Types: ${answers.autoCloseFirstTimeTypes.inc
             handleAnswer={handleAnswer}
             nextStep={nextStep}
             prevStep={prevStep}
+            styles={styles}
           />
         )}
 
@@ -836,10 +730,9 @@ ${answers.autoCloseFirstTime ? `  - Types: ${answers.autoCloseFirstTimeTypes.inc
                 autoCloseFirstTimeTypes: ['receipt', 'budget', 'overage']
               })
             }}
+            styles={styles}
           />
         )}
-          </div>
-        </div>
       </div>
     </div>
   )
@@ -847,27 +740,29 @@ ${answers.autoCloseFirstTime ? `  - Types: ${answers.autoCloseFirstTimeTypes.inc
 
 // ========== COMPONENT DEFINITIONS ==========
 
-// ========== COMPONENT DEFINITIONS ==========
-
 // QuestionInput: handles number inputs with units, yes/no radio buttons
 function QuestionInput({ label, id, answers, handleAnswer, type = 'number', unit = 'USD' }) {
   return (
-    <div className="mb-6">
-      <label htmlFor={id} className="block text-sm font-medium text-neutral-700 mb-2">
+    <div style={{ marginBottom: '24px' }}>
+      <label htmlFor={id} style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '600', color: '#475569' }}>
         {label}
       </label>
-      <div className="flex items-center gap-2">
-        {unit === 'USD' && <span className="text-neutral-500 text-base">$</span>}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {unit === 'USD' && <span style={{ color: '#64748b', fontSize: '16px' }}>$</span>}
         <input
           id={id}
           type={type}
           value={answers[id] || ''}
           onChange={(e) => handleAnswer(id, e.target.value)}
-          className="h-9 w-full rounded-md border border-neutral-200 bg-transparent px-3 py-1 text-base shadow-xs transition-colors placeholder:text-neutral-500 focus-visible:outline-none focus-visible:border-neutral-900 focus-visible:ring-[3px] focus-visible:ring-neutral-900/20 disabled:opacity-50 disabled:pointer-events-none"
-          style={{ maxWidth: '200px' }}
+          style={{
+            padding: '10px 12px',
+            fontSize: '16px',
+            border: '1px solid #cbd5e1',
+            borderRadius: '6px',
+            width: '200px'
+          }}
         />
-        {unit === 'days' && <span className="text-neutral-500 text-sm">days</span>}
-        {unit === 'occurrences' && <span className="text-neutral-500 text-sm">occurrences</span>}
+        {unit === 'days' && <span style={{ color: '#64748b', fontSize: '14px' }}>days</span>}
       </div>
     </div>
   )
@@ -876,28 +771,28 @@ function QuestionInput({ label, id, answers, handleAnswer, type = 'number', unit
 // YesNoToggle: Yes/No radio buttons
 function YesNoToggle({ label, id, answers, handleAnswer }) {
   return (
-    <div className="mb-6">
-      <label className="block text-sm font-medium text-neutral-700 mb-2">
+    <div style={{ marginBottom: '24px' }}>
+      <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '600', color: '#475569' }}>
         {label}
       </label>
-      <div className="flex gap-4">
-        <label className="flex items-center gap-2 cursor-pointer">
+      <div style={{ display: 'flex', gap: '16px' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
           <input
             type="radio"
             name={id}
             checked={answers[id] === true}
             onChange={() => handleAnswer(id, true)}
           />
-          <span className="text-sm text-neutral-600">Yes</span>
+          <span style={{ fontSize: '14px', color: '#475569' }}>Yes</span>
         </label>
-        <label className="flex items-center gap-2 cursor-pointer">
+        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
           <input
             type="radio"
             name={id}
             checked={answers[id] === false}
             onChange={() => handleAnswer(id, false)}
           />
-          <span className="text-sm text-neutral-600">No</span>
+          <span style={{ fontSize: '14px', color: '#475569' }}>No</span>
         </label>
       </div>
     </div>
@@ -908,18 +803,25 @@ function YesNoToggle({ label, id, answers, handleAnswer }) {
 function CategoryCheckbox({ category, selected, onToggle }) {
   return (
     <label
-      className={cn(
-        "flex items-center p-3 mb-2 border rounded-lg cursor-pointer transition-all",
-        selected ? "border-2 border-orange-600 bg-orange-50" : "border-neutral-200 bg-white"
-      )}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        padding: '12px',
+        marginBottom: '8px',
+        border: selected ? '2px solid #2563eb' : '1px solid #e2e8f0',
+        borderRadius: '8px',
+        cursor: 'pointer',
+        background: selected ? '#eff6ff' : 'white',
+        transition: 'all 0.2s'
+      }}
     >
       <input
         type="checkbox"
         checked={selected}
         onChange={() => onToggle(category.id)}
-        className="mr-3 w-[18px] h-[18px] cursor-pointer"
+        style={{ marginRight: '12px', width: '18px', height: '18px', cursor: 'pointer' }}
       />
-      <span className="text-[15px] text-neutral-950">{category.label}</span>
+      <span style={{ fontSize: '15px', color: '#1e293b' }}>{category.label}</span>
     </label>
   )
 }
@@ -928,23 +830,29 @@ function CategoryCheckbox({ category, selected, onToggle }) {
 function RiskOption({ option, selected, onSelect }) {
   return (
     <label
-      className={cn(
-        "block p-4 mb-3 border rounded-lg cursor-pointer transition-all",
-        selected ? "border-2 border-orange-600 bg-orange-50" : "border-neutral-200 bg-white"
-      )}
+      style={{
+        display: 'block',
+        padding: '16px',
+        marginBottom: '12px',
+        border: selected ? '2px solid #2563eb' : '1px solid #e2e8f0',
+        borderRadius: '8px',
+        cursor: 'pointer',
+        background: selected ? '#eff6ff' : 'white',
+        transition: 'all 0.2s'
+      }}
     >
-      <div className="flex items-start gap-3">
+      <div style={{ display: 'flex', alignItems: 'start', gap: '12px' }}>
         <input
           type="radio"
           checked={selected}
           onChange={onSelect}
-          className="mt-1 cursor-pointer"
+          style={{ marginTop: '4px', cursor: 'pointer' }}
         />
         <div>
-          <div className="text-base font-semibold text-neutral-950 mb-1">
+          <div style={{ fontSize: '16px', fontWeight: '600', color: '#1e293b', marginBottom: '4px' }}>
             {option.label}
           </div>
-          <div className="text-sm text-neutral-600">
+          <div style={{ fontSize: '14px', color: '#64748b' }}>
             {option.desc}
           </div>
         </div>
@@ -954,28 +862,22 @@ function RiskOption({ option, selected, onSelect }) {
 }
 
 // CategoryRulesStep: Step 7 - conditional questions for each selected category
-function CategoryRulesStep({ answers, handleAnswer, nextStep, prevStep }) {
+function CategoryRulesStep({ answers, handleAnswer, nextStep, prevStep, styles }) {
   const hasCategories = answers.selectedCategories.length > 0
 
   if (!hasCategories) {
     return (
       <>
-        <div className="px-10 py-8 border-b border-neutral-200">
-          <h2 className="text-3xl font-semibold text-neutral-950 mb-2">Step 7: Category-Specific Rules</h2>
-          <p className="text-base text-neutral-600">No categories selected - skipping to review capacity</p>
+        <div style={styles.header}>
+          <h2 style={styles.title}>Step 7: Category-Specific Rules</h2>
+          <p style={styles.subtitle}>No categories selected - skipping to review capacity</p>
         </div>
-        <div className="px-10 py-10">
-          <div className="flex gap-3 pt-6 border-t border-neutral-200 mt-8">
-            <button
-              onClick={prevStep}
-              className="h-10 px-4 rounded-xl bg-neutral-100 text-neutral-900 hover:bg-neutral-200 transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-300/50"
-            >
+        <div style={styles.content}>
+          <div style={styles.buttonGroup}>
+            <button onClick={prevStep} style={{ ...styles.button, ...styles.secondaryButton }}>
               Back
             </button>
-            <button
-              onClick={nextStep}
-              className="h-10 px-4 rounded-xl bg-neutral-950 text-neutral-50 hover:bg-neutral-900 shadow-sm transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-950/50"
-            >
+            <button onClick={nextStep} style={{ ...styles.button, ...styles.primaryButton }}>
               Continue
             </button>
           </div>
@@ -986,18 +888,18 @@ function CategoryRulesStep({ answers, handleAnswer, nextStep, prevStep }) {
 
   return (
     <>
-      <div className="px-10 py-8 border-b border-neutral-200">
-        <h2 className="text-3xl font-semibold text-neutral-950 mb-2">Step 7: Category-Specific Rules</h2>
-        <p className="text-base text-neutral-600">Configure rules for your selected expense categories</p>
+      <div style={styles.header}>
+        <h2 style={styles.title}>Step 7: Category-Specific Rules</h2>
+        <p style={styles.subtitle}>Configure rules for your selected expense categories</p>
       </div>
-      <div className="px-10 py-10">
+      <div style={styles.content}>
         {/* Travel & Lodging */}
         {answers.selectedCategories.includes('travel') && (
           <>
-            <h3 className="text-lg font-semibold text-neutral-950 mb-4">Travel & Lodging</h3>
+            <h3 style={{ fontSize: '18px', marginBottom: '16px', color: '#1e293b' }}>Travel & Lodging</h3>
 
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-neutral-700 mb-2">
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '600', color: '#475569' }}>
                 Which travel bookings should be flagged if made outside your managed travel tool?
               </label>
               {[
@@ -1006,14 +908,15 @@ function CategoryRulesStep({ answers, handleAnswer, nextStep, prevStep }) {
                 { value: 'flights', label: 'Flights only' },
                 { value: 'none', label: 'None (not applicable)' }
               ].map(option => (
-                <label key={option.value} className="flex items-center gap-2 mb-2 cursor-pointer">
+                <label key={option.value} style={{ display: 'block', marginBottom: '8px', cursor: 'pointer' }}>
                   <input
                     type="radio"
                     name="travelManagedTool"
                     checked={answers.travelManagedTool === option.value}
                     onChange={() => handleAnswer('travelManagedTool', option.value)}
+                    style={{ marginRight: '8px' }}
                   />
-                  <span className="text-sm text-neutral-600">{option.label}</span>
+                  <span style={{ fontSize: '14px', color: '#475569' }}>{option.label}</span>
                 </label>
               ))}
             </div>
@@ -1027,7 +930,7 @@ function CategoryRulesStep({ answers, handleAnswer, nextStep, prevStep }) {
         {/* Meals & Entertainment */}
         {answers.selectedCategories.includes('meals') && (
           <>
-            <h3 className="text-lg font-semibold text-neutral-950 mt-8 mb-4">Meals & Entertainment</h3>
+            <h3 style={{ fontSize: '18px', margin: '32px 0 16px', color: '#1e293b' }}>Meals & Entertainment</h3>
             <QuestionInput label="Flag meals above X per person with no attendees listed" id="mealsAttendeeThreshold" answers={answers} handleAnswer={handleAnswer} />
             <YesNoToggle label="Flag 1-on-1 meals (if prohibited by your policy)?" id="mealsFlag1on1" answers={answers} handleAnswer={handleAnswer} />
             <YesNoToggle label="Flag meals expensed on personal incidentals budget vs event/travel budget?" id="mealsFlagPersonalBudget" answers={answers} handleAnswer={handleAnswer} />
@@ -1037,7 +940,7 @@ function CategoryRulesStep({ answers, handleAnswer, nextStep, prevStep }) {
         {/* Ground Transportation */}
         {answers.selectedCategories.includes('transport') && (
           <>
-            <h3 className="text-lg font-semibold text-neutral-950 mt-8 mb-4">Ground Transportation</h3>
+            <h3 style={{ fontSize: '18px', margin: '32px 0 16px', color: '#1e293b' }}>Ground Transportation</h3>
             <YesNoToggle label="Flag premium rideshare (Uber Black, Lyft Lux)?" id="transportFlagPremium" answers={answers} handleAnswer={handleAnswer} />
             <YesNoToggle label="Flag rides where destination suggests personal use (home, gym)?" id="transportFlagPersonal" answers={answers} handleAnswer={handleAnswer} />
             <QuestionInput label="Flag car rentals above (per day)" id="transportRentalThreshold" answers={answers} handleAnswer={handleAnswer} />
@@ -1047,7 +950,7 @@ function CategoryRulesStep({ answers, handleAnswer, nextStep, prevStep }) {
         {/* Equipment & Office Supplies */}
         {answers.selectedCategories.includes('equipment') && (
           <>
-            <h3 className="text-lg font-semibold text-neutral-950 mt-8 mb-4">Equipment & Office Supplies</h3>
+            <h3 style={{ fontSize: '18px', margin: '32px 0 16px', color: '#1e293b' }}>Equipment & Office Supplies</h3>
             <QuestionInput label="Flag single purchases above X without itemized receipt" id="equipmentPurchaseThreshold" answers={answers} handleAnswer={handleAnswer} />
             <YesNoToggle label="Flag purchases at general merchandise retailers (Amazon, Walmart) without itemized receipt?" id="equipmentFlagNoReceipt" answers={answers} handleAnswer={handleAnswer} />
           </>
@@ -1056,7 +959,7 @@ function CategoryRulesStep({ answers, handleAnswer, nextStep, prevStep }) {
         {/* Events & Offsites */}
         {answers.selectedCategories.includes('events') && (
           <>
-            <h3 className="text-lg font-semibold text-neutral-950 mt-8 mb-4">Events & Offsites</h3>
+            <h3 style={{ fontSize: '18px', margin: '32px 0 16px', color: '#1e293b' }}>Events & Offsites</h3>
             <YesNoToggle label="Flag spend assigned to an event budget outside the event dates?" id="eventsFlagOutsideDates" answers={answers} handleAnswer={handleAnswer} />
             <YesNoToggle label="Flag T&E charges on event budgets after event end date?" id="eventsFlagAfterEnd" answers={answers} handleAnswer={handleAnswer} />
           </>
@@ -1065,7 +968,7 @@ function CategoryRulesStep({ answers, handleAnswer, nextStep, prevStep }) {
         {/* Client Gifts & Entertainment */}
         {answers.selectedCategories.includes('gifts') && (
           <>
-            <h3 className="text-lg font-semibold text-neutral-950 mt-8 mb-4">Client Gifts & Entertainment</h3>
+            <h3 style={{ fontSize: '18px', margin: '32px 0 16px', color: '#1e293b' }}>Client Gifts & Entertainment</h3>
             <QuestionInput label="Flag gifts above" id="giftsThreshold" answers={answers} handleAnswer={handleAnswer} />
             <YesNoToggle label="Flag gifts with no recipient name or business purpose documented?" id="giftsFlagNoRecipient" answers={answers} handleAnswer={handleAnswer} />
           </>
@@ -1074,7 +977,7 @@ function CategoryRulesStep({ answers, handleAnswer, nextStep, prevStep }) {
         {/* Software Subscriptions */}
         {answers.selectedCategories.includes('software') && (
           <>
-            <h3 className="text-lg font-semibold text-neutral-950 mt-8 mb-4">Software Subscriptions</h3>
+            <h3 style={{ fontSize: '18px', margin: '32px 0 16px', color: '#1e293b' }}>Software Subscriptions</h3>
             <YesNoToggle label="Flag duplicate subscriptions (same tool, multiple employees)?" id="softwareFlagDuplicates" answers={answers} handleAnswer={handleAnswer} />
             <YesNoToggle label="Flag personal-category software (streaming, gaming, entertainment)?" id="softwareFlagPersonal" answers={answers} handleAnswer={handleAnswer} />
             <YesNoToggle label="Flag recurring charges with no clear business purpose?" id="softwareFlagNoPurpose" answers={answers} handleAnswer={handleAnswer} />
@@ -1084,22 +987,16 @@ function CategoryRulesStep({ answers, handleAnswer, nextStep, prevStep }) {
         {/* Professional Development */}
         {answers.selectedCategories.includes('development') && (
           <>
-            <h3 className="text-lg font-semibold text-neutral-950 mt-8 mb-4">Professional Development</h3>
+            <h3 style={{ fontSize: '18px', margin: '32px 0 16px', color: '#1e293b' }}>Professional Development</h3>
             <YesNoToggle label="Flag conferences or trainings without prior approval signal?" id="developmentFlagNoApproval" answers={answers} handleAnswer={handleAnswer} />
           </>
         )}
 
-        <div className="flex gap-3 pt-6 border-t border-neutral-200 mt-8">
-          <button
-            onClick={prevStep}
-            className="h-10 px-4 rounded-xl bg-neutral-100 text-neutral-900 hover:bg-neutral-200 transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-300/50"
-          >
+        <div style={styles.buttonGroup}>
+          <button onClick={prevStep} style={{ ...styles.button, ...styles.secondaryButton }}>
             Back
           </button>
-          <button
-            onClick={nextStep}
-            className="h-10 px-4 rounded-xl bg-neutral-950 text-neutral-50 hover:bg-neutral-900 shadow-sm transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-950/50"
-          >
+          <button onClick={nextStep} style={{ ...styles.button, ...styles.primaryButton }}>
             Continue
           </button>
         </div>
@@ -1109,7 +1006,7 @@ function CategoryRulesStep({ answers, handleAnswer, nextStep, prevStep }) {
 }
 
 // AutoCloseStep: Step 9 - auto-close rule configuration
-function AutoCloseStep({ answers, handleAnswer, nextStep, prevStep }) {
+function AutoCloseStep({ answers, handleAnswer, nextStep, prevStep, styles }) {
   const toggleAutoCloseType = (type) => {
     const current = answers.autoCloseFirstTimeTypes || []
     const updated = current.includes(type)
@@ -1120,23 +1017,23 @@ function AutoCloseStep({ answers, handleAnswer, nextStep, prevStep }) {
 
   return (
     <>
-      <div className="px-10 py-8 border-b border-neutral-200">
-        <h2 className="text-3xl font-semibold text-neutral-950 mb-2">Step 9: Auto-Close Rules</h2>
-        <p className="text-base text-neutral-600">Define thresholds for automatic case resolution</p>
+      <div style={styles.header}>
+        <h2 style={styles.title}>Step 9: Auto-Close Rules</h2>
+        <p style={styles.subtitle}>Define thresholds for automatic case resolution</p>
       </div>
-      <div className="px-10 py-10">
-        <p className="text-sm text-neutral-600 mb-6">
+      <div style={styles.content}>
+        <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '24px' }}>
           These values are auto-filled based on your review capacity. Adjust as needed.
         </p>
 
         <QuestionInput label="Auto-close violations under" id="autoCloseAmount" answers={answers} handleAnswer={handleAnswer} />
 
-        <div className="mt-8">
+        <div style={{ marginTop: '32px' }}>
           <YesNoToggle label="Auto-close first-time procedural issues?" id="autoCloseFirstTime" answers={answers} handleAnswer={handleAnswer} />
 
           {answers.autoCloseFirstTime && (
-            <div className="ml-6 mt-4">
-              <p className="text-sm font-medium text-neutral-700 mb-3">
+            <div style={{ marginLeft: '24px', marginTop: '16px' }}>
+              <p style={{ fontSize: '14px', fontWeight: '600', color: '#475569', marginBottom: '12px' }}>
                 Which types should be auto-closed?
               </p>
               {[
@@ -1146,26 +1043,31 @@ function AutoCloseStep({ answers, handleAnswer, nextStep, prevStep }) {
               ].map(type => (
                 <label
                   key={type.id}
-                  className="flex items-center p-2 cursor-pointer"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '8px',
+                    cursor: 'pointer'
+                  }}
                 >
                   <input
                     type="checkbox"
                     checked={(answers.autoCloseFirstTimeTypes || []).includes(type.id)}
                     onChange={() => toggleAutoCloseType(type.id)}
-                    className="mr-2 cursor-pointer"
+                    style={{ marginRight: '8px', cursor: 'pointer' }}
                   />
-                  <span className="text-sm text-neutral-600">{type.label}</span>
+                  <span style={{ fontSize: '14px', color: '#475569' }}>{type.label}</span>
                 </label>
               ))}
             </div>
           )}
         </div>
 
-        <div className="mt-8 p-4 bg-amber-50 rounded-lg border border-amber-400">
-          <p className="text-sm font-semibold text-amber-900 mb-2">
+        <div style={{ marginTop: '32px', padding: '16px', background: '#fef3c7', borderRadius: '8px', border: '1px solid #fbbf24' }}>
+          <p style={{ fontSize: '14px', fontWeight: '600', color: '#92400e', marginBottom: '8px' }}>
             Never auto-close (always require review):
           </p>
-          <ul className="m-0 pl-5 text-sm text-amber-900">
+          <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '14px', color: '#92400e' }}>
             <li>Duplicate receipts</li>
             <li>AI-generated or modified receipts</li>
             <li>Cash-equivalent purchases</li>
@@ -1174,21 +1076,15 @@ function AutoCloseStep({ answers, handleAnswer, nextStep, prevStep }) {
           </ul>
         </div>
 
-        <div className="mt-8">
+        <div style={{ marginTop: '32px' }}>
           <YesNoToggle label="Auto-close when employee provides clarification that resolves the issue?" id="autoCloseResolved" answers={answers} handleAnswer={handleAnswer} />
         </div>
 
-        <div className="flex gap-3 pt-6 border-t border-neutral-200 mt-8">
-          <button
-            onClick={prevStep}
-            className="h-10 px-4 rounded-xl bg-neutral-100 text-neutral-900 hover:bg-neutral-200 transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-300/50"
-          >
+        <div style={styles.buttonGroup}>
+          <button onClick={prevStep} style={{ ...styles.button, ...styles.secondaryButton }}>
             Back
           </button>
-          <button
-            onClick={nextStep}
-            className="h-10 px-4 rounded-xl bg-neutral-950 text-neutral-50 hover:bg-neutral-900 shadow-sm transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-950/50"
-          >
+          <button onClick={nextStep} style={{ ...styles.button, ...styles.primaryButton }}>
             Continue
           </button>
         </div>
@@ -1198,47 +1094,41 @@ function AutoCloseStep({ answers, handleAnswer, nextStep, prevStep }) {
 }
 
 // EscalationStep: Step 10 - escalation trigger configuration
-function EscalationStep({ answers, handleAnswer, nextStep, prevStep }) {
+function EscalationStep({ answers, handleAnswer, nextStep, prevStep, styles }) {
   return (
     <>
-      <div className="px-10 py-8 border-b border-neutral-200">
-        <h2 className="text-3xl font-semibold text-neutral-950 mb-2">Step 10: Escalation Triggers</h2>
-        <p className="text-base text-neutral-600">Define when cases should be escalated to human review</p>
+      <div style={styles.header}>
+        <h2 style={styles.title}>Step 10: Escalation Triggers</h2>
+        <p style={styles.subtitle}>Define when cases should be escalated to human review</p>
       </div>
-      <div className="px-10 py-10">
-        <h3 className="text-lg font-semibold text-neutral-950 mb-4">Amount-based escalation</h3>
+      <div style={styles.content}>
+        <h3 style={{ fontSize: '18px', marginBottom: '16px', color: '#1e293b' }}>Amount-based escalation</h3>
         <QuestionInput label="Always escalate to human review if amount exceeds" id="escalateAmount" answers={answers} handleAnswer={handleAnswer} />
 
-        <h3 className="text-lg font-semibold text-neutral-950 mt-8 mb-4">Pattern-based escalation</h3>
+        <h3 style={{ fontSize: '18px', margin: '32px 0 16px', color: '#1e293b' }}>Pattern-based escalation</h3>
         <QuestionInput label="Escalate repeat violations after X occurrences" id="escalateRepeatsCount" answers={answers} handleAnswer={handleAnswer} type="number" unit="occurrences" />
         <QuestionInput label="Escalate cumulative violations when total exceeds" id="escalateCumulativeAmount" answers={answers} handleAnswer={handleAnswer} />
 
-        <h3 className="text-lg font-semibold text-neutral-950 mt-8 mb-4">Type-based escalation</h3>
-        <div className="p-4 bg-red-50 rounded-lg border border-red-400">
-          <p className="text-sm font-semibold text-red-900 mb-2">
+        <h3 style={{ fontSize: '18px', margin: '32px 0 16px', color: '#1e293b' }}>Type-based escalation</h3>
+        <div style={{ padding: '16px', background: '#fef2f2', borderRadius: '8px', border: '1px solid #ef4444' }}>
+          <p style={{ fontSize: '14px', fontWeight: '600', color: '#7f1d1d', marginBottom: '8px' }}>
             Always escalate these types:
           </p>
-          <ul className="m-0 pl-5 text-sm text-red-900">
+          <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '14px', color: '#7f1d1d' }}>
             <li>Suspected fraud (duplicates, AI receipts, split transactions)</li>
             <li>Prohibited merchant categories</li>
             <li>Receipt/claim mismatch</li>
           </ul>
         </div>
 
-        <h3 className="text-lg font-semibold text-neutral-950 mt-8 mb-4">Response time</h3>
+        <h3 style={{ fontSize: '18px', margin: '32px 0 16px', color: '#1e293b' }}>Response time</h3>
         <QuestionInput label="Escalate if employee does not respond within X days" id="escalateNoResponseDays" answers={answers} handleAnswer={handleAnswer} type="number" unit="days" />
 
-        <div className="flex gap-3 pt-6 border-t border-neutral-200 mt-8">
-          <button
-            onClick={prevStep}
-            className="h-10 px-4 rounded-xl bg-neutral-100 text-neutral-900 hover:bg-neutral-200 transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-300/50"
-          >
+        <div style={styles.buttonGroup}>
+          <button onClick={prevStep} style={{ ...styles.button, ...styles.secondaryButton }}>
             Back
           </button>
-          <button
-            onClick={nextStep}
-            className="h-10 px-4 rounded-xl bg-neutral-950 text-neutral-50 hover:bg-neutral-900 shadow-sm transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-950/50"
-          >
+          <button onClick={nextStep} style={{ ...styles.button, ...styles.primaryButton }}>
             Continue to Results
           </button>
         </div>
@@ -1248,60 +1138,70 @@ function EscalationStep({ answers, handleAnswer, nextStep, prevStep }) {
 }
 
 // ResultsStep: Step 8 - document preview and download
-function ResultsStep({ auditRules, reviewSOP, downloadFile, onReset }) {
+function ResultsStep({ auditRules, reviewSOP, downloadFile, onReset, styles }) {
   return (
     <>
-      <div className="px-10 py-8 border-b border-neutral-200">
-        <h2 className="text-3xl font-semibold text-neutral-950 mb-2">Your Generated Documents</h2>
-        <p className="text-base text-neutral-600">Download your custom audit rules and review instructions</p>
+      <div style={styles.header}>
+        <h2 style={styles.title}>Your Generated Documents</h2>
+        <p style={styles.subtitle}>Download your custom audit rules and review instructions</p>
       </div>
-      <div className="px-10 py-10">
-        <div className="mb-8">
-          <h3 className="text-lg font-semibold text-neutral-950 mb-3">1. audit_rules.md</h3>
-          <p className="text-sm text-neutral-600 mb-4">
+      <div style={styles.content}>
+        <div style={{ marginBottom: '32px' }}>
+          <h3 style={{ fontSize: '18px', marginBottom: '12px', color: '#1e293b' }}>1. audit_rules.md</h3>
+          <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '16px' }}>
             Defines what creates cases (fraud detection, spending patterns, category-specific violations)
           </p>
           <button
             onClick={() => downloadFile(auditRules, 'audit_rules.md')}
-            className="h-10 px-4 rounded-xl bg-neutral-950 text-neutral-50 hover:bg-neutral-900 shadow-sm transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-950/50 w-full mb-4"
+            style={{
+              ...styles.button,
+              ...styles.primaryButton,
+              width: '100%',
+              marginBottom: '16px'
+            }}
           >
             Download audit_rules.md
           </button>
-          <details className="text-sm text-neutral-600 p-4 bg-neutral-50 rounded-lg">
-            <summary className="cursor-pointer font-semibold mb-3">
+          <details style={{ fontSize: '14px', color: '#475569', padding: '16px', background: '#f8fafc', borderRadius: '8px' }}>
+            <summary style={{ cursor: 'pointer', fontWeight: '600', marginBottom: '12px' }}>
               Preview document
             </summary>
-            <pre className="whitespace-pre-wrap text-xs text-neutral-700 leading-relaxed">
+            <pre style={{ whiteSpace: 'pre-wrap', fontSize: '12px', color: '#334155', lineHeight: '1.6' }}>
               {auditRules}
             </pre>
           </details>
         </div>
 
-        <div className="mb-8">
-          <h3 className="text-lg font-semibold text-neutral-950 mb-3">2. review_sop.md</h3>
-          <p className="text-sm text-neutral-600 mb-4">
+        <div style={{ marginBottom: '32px' }}>
+          <h3 style={{ fontSize: '18px', marginBottom: '12px', color: '#1e293b' }}>2. review_sop.md</h3>
+          <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '16px' }}>
             Defines case handling (auto-close criteria, escalation triggers, response time requirements)
           </p>
           <button
             onClick={() => downloadFile(reviewSOP, 'review_sop.md')}
-            className="h-10 px-4 rounded-xl bg-neutral-950 text-neutral-50 hover:bg-neutral-900 shadow-sm transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-950/50 w-full mb-4"
+            style={{
+              ...styles.button,
+              ...styles.primaryButton,
+              width: '100%',
+              marginBottom: '16px'
+            }}
           >
             Download review_sop.md
           </button>
-          <details className="text-sm text-neutral-600 p-4 bg-neutral-50 rounded-lg">
-            <summary className="cursor-pointer font-semibold mb-3">
+          <details style={{ fontSize: '14px', color: '#475569', padding: '16px', background: '#f8fafc', borderRadius: '8px' }}>
+            <summary style={{ cursor: 'pointer', fontWeight: '600', marginBottom: '12px' }}>
               Preview document
             </summary>
-            <pre className="whitespace-pre-wrap text-xs text-neutral-700 leading-relaxed">
+            <pre style={{ whiteSpace: 'pre-wrap', fontSize: '12px', color: '#334155', lineHeight: '1.6' }}>
               {reviewSOP}
             </pre>
           </details>
         </div>
 
-        <div className="flex gap-3 pt-6 border-t border-neutral-200 mt-8">
+        <div style={styles.buttonGroup}>
           <button
             onClick={onReset}
-            className="h-10 px-4 rounded-xl bg-neutral-100 text-neutral-900 hover:bg-neutral-200 transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-300/50"
+            style={{ ...styles.button, ...styles.secondaryButton }}
           >
             Start Over
           </button>
