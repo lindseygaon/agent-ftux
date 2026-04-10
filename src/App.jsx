@@ -45,6 +45,10 @@ const STEPS = STEP_SECTIONS.flatMap(s => s.steps)
 function App() {
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
   const [policyFile, setPolicyFile] = useState(null)
+  const [policyParsing, setPolicyParsing] = useState(false)
+  const [policyInsights, setPolicyInsights] = useState(null) // fields extracted from policy
+  const [generatingDocs, setGeneratingDocs] = useState(false)
+  const [generatedDocs, setGeneratedDocs] = useState(null) // { auditRules, reviewSOP }
   const [answers, setAnswers] = useState({
     // Spend Categories
     spendCategories: [],
@@ -137,14 +141,61 @@ function App() {
     }))
   }
 
-  const handleFileUpload = (e) => {
+  const handleFileUpload = async (e) => {
     const file = e.target.files[0]
-    if (file) setPolicyFile(file.name)
+    if (!file) return
+    setPolicyFile(file.name)
+    setPolicyInsights(null)
+    setPolicyParsing(true)
+    try {
+      const text = await file.text()
+      const res = await fetch('/api/parse-policy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ policyText: text }),
+      })
+      const data = await res.json()
+      if (data.extracted && Object.keys(data.extracted).length > 0) {
+        setPolicyInsights(data.extracted)
+        setAnswers(prev => ({ ...prev, ...data.extracted }))
+      }
+    } catch (err) {
+      console.error('Policy parse failed:', err)
+    } finally {
+      setPolicyParsing(false)
+    }
   }
 
-  const generateDocuments = () => {
+  const formatFreetext = async (section, freetext) => {
+    if (!freetext?.trim()) return ''
+    try {
+      const context = `Categories: ${answers.spendCategories.join(', ') || 'not specified'}`
+      const res = await fetch('/api/format-freetext', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ section, context, freetext }),
+      })
+      const data = await res.json()
+      return data.formatted || ''
+    } catch (err) {
+      console.error('Freetext format failed:', err)
+      return freetext // fall back to raw text
+    }
+  }
+
+  const handleGenerateDocs = async () => {
+    setGeneratingDocs(true)
+    setCurrentStepIndex(STEPS.findIndex(s => s.id === 'results'))
+
     const yesNo = (val) => val ? 'Yes' : 'No'
     const selectedCategories = SPEND_CATEGORIES.filter(c => answers.spendCategories.includes(c.id)).map(c => c.label)
+
+    // Run all three freetext calls in parallel
+    const [fraudFormatted, anomalyFormatted, autoCloseFormatted] = await Promise.all([
+      formatFreetext('fraudSignals', answers.fraudAdditionalContext),
+      formatFreetext('spendingAnomalies', answers.anomalyAdditionalContext),
+      formatFreetext('autoClose', answers.autoCloseAdditionalContext),
+    ])
 
     const auditRules = `# Audit Rules
 
@@ -167,7 +218,7 @@ ${hasTravel ? `| Same-day airfare or hotel bookings | ${yesNo(answers.fraudTrave
 | Mileage claims without travel context | ${yesNo(answers.fraudTravelMileage)} | Medium |` : ''}
 ${hasSoftware ? `| Duplicate tool purchases (shadow IT) | ${yesNo(answers.fraudSoftwareDuplicate)} | Medium |
 | Personal software subscriptions | ${yesNo(answers.fraudSoftwarePersonal)} | Medium |` : ''}
-${answers.fraudAdditionalContext ? `\n### Additional Context\n${answers.fraudAdditionalContext}\n` : ''}
+${fraudFormatted ? `${fraudFormatted}\n` : ''}
 ## Spending Anomalies
 *Behavioral patterns that trigger case creation. Escalation or auto-close behavior is governed by the Review Instructions.*
 
@@ -184,7 +235,7 @@ ${hasSoftware ? `| New SaaS subscription (unapproved) | ${yesNo(answers.software
 | Auto-renewal price spike | ${yesNo(answers.softwareRenewalSpike)} | >${answers.softwareRenewalSpikePct}% increase vs. prior period | Low |` : ''}
 ${hasProcurement ? `| New vendor spend | ${yesNo(answers.procurementNewVendor)} | Above $${answers.procurementNewVendorAmount} | Medium |
 | Significant vendor spend change | ${yesNo(answers.procurementVendorSpike)} | >${answers.procurementVendorSpikePct}% increase vs. prior period | Medium |` : ''}
-${answers.anomalyAdditionalContext ? `\n### Additional Context\n${answers.anomalyAdditionalContext}\n` : ''}`
+${anomalyFormatted ? `${anomalyFormatted}\n` : ''}`
 
     const reviewSOP = `# Review Instructions
 
@@ -199,7 +250,7 @@ ${answers.reviewAlwaysFraud ? '- Any fraud signal (duplicates, AI receipts, cash
 
 ### Auto-Close (No Review Required)
 - Out-of-policy spend **under $${answers.autoCloseAmount}**
-${answers.autoCloseMissingDocs ? `- Missing documentation cases where transaction is under $${answers.autoCloseMissingDocsAmount}\n` : ''}${answers.autoCloseFirstTime ? '- First-time procedural violations (missing receipt, vague description, incorrect budget)\n' : ''}${answers.autoCloseResolved ? '- Any case where the employee provides documentation that resolves the issue\n' : ''}${answers.autoCloseAdditionalContext ? `\n### Additional Context\n${answers.autoCloseAdditionalContext}\n` : ''}
+${answers.autoCloseMissingDocs ? `- Missing documentation cases where transaction is under $${answers.autoCloseMissingDocsAmount}\n` : ''}${answers.autoCloseFirstTime ? '- First-time procedural violations (missing receipt, vague description, incorrect budget)\n' : ''}${answers.autoCloseResolved ? '- Any case where the employee provides documentation that resolves the issue\n' : ''}${autoCloseFormatted ? `${autoCloseFormatted}\n` : ''}
 ### Never Auto-Close
 - Fraud signals (any amount)
 - Spending anomalies involving geographic or behavioral red flags
@@ -208,8 +259,8 @@ ${answers.autoCloseMissingDocs ? `- Missing documentation cases where transactio
 ## Response Time
 - Escalate if employee does not respond within **${answers.autoCloseNoResponseDays} days**
 `
-
-    return { auditRules, reviewSOP }
+    setGeneratedDocs({ auditRules, reviewSOP })
+    setGeneratingDocs(false)
   }
 
   const downloadFile = (content, filename) => {
@@ -222,9 +273,8 @@ ${answers.autoCloseMissingDocs ? `- Missing documentation cases where transactio
     URL.revokeObjectURL(url)
   }
 
-  const { auditRules, reviewSOP } = currentStep === 'results'
-    ? generateDocuments()
-    : { auditRules: '', reviewSOP: '' }
+  const auditRules = generatedDocs?.auditRules ?? ''
+  const reviewSOP = generatedDocs?.reviewSOP ?? ''
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-neutral-50 to-neutral-100 flex">
@@ -336,8 +386,40 @@ ${answers.autoCloseMissingDocs ? `- Missing documentation cases where transactio
                   accept=".pdf,.doc,.docx,.txt"
                   className="text-sm text-neutral-600"
                 />
-                {policyFile && (
+                {policyParsing && (
+                  <p className="mt-3 text-neutral-500 text-sm flex items-center gap-2">
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                    </svg>
+                    Analyzing policy...
+                  </p>
+                )}
+                {policyFile && !policyParsing && (
                   <p className="mt-3 text-green-600 text-sm font-medium">✓ {policyFile}</p>
+                )}
+                {policyInsights && !policyParsing && (
+                  <div className="mt-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3">
+                    <p className="text-xs font-semibold text-green-800 mb-2">Pre-filled from your policy</p>
+                    <ul className="space-y-1">
+                      {policyInsights.reviewHighAmount && (
+                        <li className="text-xs text-green-700">• Review threshold set to <strong>${policyInsights.reviewHighAmount}</strong></li>
+                      )}
+                      {policyInsights.autoCloseAmount && (
+                        <li className="text-xs text-green-700">• Auto-close threshold set to <strong>${policyInsights.autoCloseAmount}</strong></li>
+                      )}
+                      {policyInsights.anomalyLateDays && (
+                        <li className="text-xs text-green-700">• Late submission window set to <strong>{policyInsights.anomalyLateDays} days</strong></li>
+                      )}
+                      {policyInsights.spendCategories?.length > 0 && (
+                        <li className="text-xs text-green-700">• Spend categories detected: <strong>{policyInsights.spendCategories.join(', ')}</strong></li>
+                      )}
+                      {policyInsights.reviewRiskTolerance && (
+                        <li className="text-xs text-green-700">• Risk tolerance inferred as <strong>{policyInsights.reviewRiskTolerance}</strong></li>
+                      )}
+                    </ul>
+                    <p className="text-xs text-green-600 mt-2">You can adjust any of these in the following steps.</p>
+                  </div>
                 )}
                 <div className="flex gap-3 pt-8 border-t border-neutral-100 mt-8">
                   <button onClick={nextStep} className="h-10 px-5 rounded-xl bg-neutral-950 text-neutral-50 text-sm font-medium hover:bg-neutral-800 shadow-sm transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-950/30">
@@ -770,7 +852,7 @@ ${answers.autoCloseMissingDocs ? `- Missing documentation cases where transactio
                   />
                 </div>
 
-                <NavButtons onBack={prevStep} onNext={nextStep} nextLabel="Generate Documents" />
+                <NavButtons onBack={prevStep} onNext={handleGenerateDocs} nextLabel={generatingDocs ? 'Generating...' : 'Generate Documents'} />
               </div>
             </div>
           )}
@@ -784,30 +866,43 @@ ${answers.autoCloseMissingDocs ? `- Missing documentation cases where transactio
               </div>
               <div className="px-8 py-8 space-y-6">
 
-                <DocCard
-                  title="audit_rules.md"
-                  desc="Tells the audit agent what to flag — fraud signals and spending anomalies with risk levels."
-                  content={auditRules}
-                  filename="audit_rules.md"
-                  downloadFile={downloadFile}
-                />
+                {generatingDocs ? (
+                  <div className="flex flex-col items-center py-12 gap-4 text-neutral-500">
+                    <svg className="w-8 h-8 animate-spin text-neutral-400" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                    </svg>
+                    <p className="text-sm font-medium">Formatting your documents...</p>
+                    <p className="text-xs text-neutral-400">Interpreting your custom rules</p>
+                  </div>
+                ) : (
+                  <>
+                    <DocCard
+                      title="audit_rules.md"
+                      desc="Tells the audit agent what to flag — fraud signals and spending anomalies with risk levels."
+                      content={auditRules}
+                      filename="audit_rules.md"
+                      downloadFile={downloadFile}
+                    />
 
-                <DocCard
-                  title="review_sop.md"
-                  desc="Tells the review agent when to escalate to a human and when to auto-close."
-                  content={reviewSOP}
-                  filename="review_sop.md"
-                  downloadFile={downloadFile}
-                />
+                    <DocCard
+                      title="review_sop.md"
+                      desc="Tells the review agent when to escalate to a human and when to auto-close."
+                      content={reviewSOP}
+                      filename="review_sop.md"
+                      downloadFile={downloadFile}
+                    />
 
-                <div className="pt-2">
-                  <button
-                    onClick={() => { setCurrentStepIndex(0); setPolicyFile(null) }}
-                    className="h-9 px-4 rounded-lg bg-neutral-100 text-neutral-700 text-sm font-medium hover:bg-neutral-200 transition-all active:scale-[0.98]"
-                  >
-                    Start over
-                  </button>
-                </div>
+                    <div className="pt-2">
+                      <button
+                        onClick={() => { setCurrentStepIndex(0); setPolicyFile(null); setPolicyInsights(null); setGeneratedDocs(null) }}
+                        className="h-9 px-4 rounded-lg bg-neutral-100 text-neutral-700 text-sm font-medium hover:bg-neutral-200 transition-all active:scale-[0.98]"
+                      >
+                        Start over
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           )}

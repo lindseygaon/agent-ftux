@@ -21,6 +21,7 @@
   },
   "homepage": "https://github.com/lindseygaon/agent-ftux#readme",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.87.0",
     "clsx": "^2.1.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
