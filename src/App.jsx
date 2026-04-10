@@ -335,21 +335,49 @@ ${answers.autoCloseFirstTime ? '- First-time procedural violations (missing rece
                 </p>
               </div>
               <div className="px-8 py-8">
-                <label className="block text-sm font-medium text-neutral-700 mb-3">Policy document</label>
-                <input
-                  type="file"
-                  onChange={handleFileUpload}
-                  accept=".pdf,.doc,.docx,.txt"
-                  className="text-sm text-neutral-600"
-                />
-                {policyFile && (
-                  <p className="mt-3 text-green-600 text-sm font-medium">✓ {policyFile}</p>
-                )}
+                <label className="block">
+                  <input
+                    type="file"
+                    onChange={handleFileUpload}
+                    accept=".pdf,.doc,.docx,.txt"
+                    className="sr-only"
+                  />
+                  <div className={cn(
+                    "flex flex-col items-center justify-center gap-3 border-2 border-dashed rounded-xl px-6 py-10 cursor-pointer transition-colors",
+                    policyFile
+                      ? "border-green-300 bg-green-50"
+                      : "border-neutral-200 bg-neutral-50 hover:border-neutral-300 hover:bg-neutral-100"
+                  )}>
+                    {policyFile ? (
+                      <>
+                        <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+                          <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <p className="text-sm font-medium text-green-800">{policyFile}</p>
+                        <p className="text-xs text-neutral-500">Click to replace</p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-10 h-10 rounded-full bg-neutral-200 flex items-center justify-center">
+                          <svg className="w-5 h-5 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                          </svg>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-sm font-medium text-neutral-700">Upload your expense policy</p>
+                          <p className="text-xs text-neutral-400 mt-0.5">PDF, Word, or TXT</p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </label>
                 {policyParsing && (
-                  <p className="mt-2 text-neutral-500 text-sm animate-pulse">Reading your policy…</p>
+                  <p className="mt-3 text-neutral-500 text-sm animate-pulse">Reading your policy…</p>
                 )}
                 {policyInsights && !policyParsing && (
-                  <p className="mt-2 text-orange-700 text-sm font-medium">✦ Pre-filled settings from your policy</p>
+                  <p className="mt-3 text-orange-700 text-sm font-medium">✦ Pre-filled settings from your policy</p>
                 )}
                 <div className="flex gap-3 pt-8 border-t border-neutral-100 mt-8">
                   <button onClick={nextStep} className="h-10 px-5 rounded-xl bg-neutral-950 text-neutral-50 text-sm font-medium hover:bg-neutral-800 shadow-sm transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-950/30">
