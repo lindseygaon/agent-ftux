@@ -1,6 +1,15 @@
 import { useState } from 'react'
 import { cn } from './lib/utils'
 
+const SPEND_CATEGORIES = [
+  { id: 'travel', label: 'Travel & Expenses', desc: 'Flights, hotels, meals, ground transport' },
+  { id: 'software', label: 'Software & SaaS', desc: 'Subscriptions, licenses, cloud services' },
+  { id: 'procurement', label: 'Procurement & Vendors', desc: 'Suppliers, contractors, professional services' },
+  { id: 'marketing', label: 'Marketing & Events', desc: 'Ads, sponsorships, offsites, swag' },
+  { id: 'office', label: 'Office & Facilities', desc: 'Supplies, equipment, utilities' },
+  { id: 'other', label: 'Other', desc: 'Anything not covered above' },
+]
+
 const STEP_SECTIONS = [
   {
     section: 'Upload Policy',
@@ -11,21 +20,22 @@ const STEP_SECTIONS = [
   {
     section: 'Audit Rules',
     steps: [
-      { id: 'fraud-signals', label: 'Fraud Signals', number: 2 },
-      { id: 'spending-anomalies', label: 'Spending Anomalies', number: 3 }
+      { id: 'spend-categories', label: 'Spend Categories', number: 2 },
+      { id: 'fraud-signals', label: 'Fraud Signals', number: 3 },
+      { id: 'spending-anomalies', label: 'Spending Anomalies', number: 4 }
     ]
   },
   {
     section: 'Review Instructions',
     steps: [
-      { id: 'review-thresholds', label: 'Review Thresholds', number: 4 },
-      { id: 'auto-close', label: 'Auto-Close Rules', number: 5 }
+      { id: 'review-thresholds', label: 'Review Thresholds', number: 5 },
+      { id: 'auto-close', label: 'Auto-Close Rules', number: 6 }
     ]
   },
   {
     section: 'Download Documents',
     steps: [
-      { id: 'results', label: 'Review & Download', number: 6 }
+      { id: 'results', label: 'Review & Download', number: 7 }
     ]
   }
 ]
@@ -36,16 +46,28 @@ function App() {
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
   const [policyFile, setPolicyFile] = useState(null)
   const [answers, setAnswers] = useState({
-    // Fraud Signals
+    // Spend Categories
+    spendCategories: [],
+
+    // Fraud Signals — always shown
     fraudDuplicates: true,
     fraudAI: true,
     fraudMismatch: true,
     fraudCashEquiv: true,
     fraudSplits: true,
     fraudPersonalSignals: true,
+    // Fraud — Travel
+    fraudTravelSameDay: true,
+    fraudTravelPersonalAddons: true,
+    fraudTravelMileage: true,
+    // Fraud — Software
+    fraudSoftwareDuplicate: true,
+    fraudSoftwarePersonal: true,
+    fraudAdditionalContext: '',
 
-    // Spending Anomalies
+    // Spending Anomalies — always shown
     anomalyHistorical: true,
+    anomalyHistoricalPct: 100,
     anomalyGeoMismatch: true,
     anomalyGeoAmount: 100,
     anomalyLateSubmission: true,
@@ -55,8 +77,25 @@ function App() {
     anomalyRepeatViolator: true,
     anomalyRepeatCount: 3,
     anomalyRepeatAmount: 500,
+    // Anomalies — Travel
+    travelPerDiem: true,
+    travelPerDiemPct: 25,
+    travelWeekendMeals: true,
+    // Anomalies — Software
+    softwareNewSubscription: true,
+    softwareNewSubscriptionAmount: 500,
+    softwareRenewalSpike: true,
+    softwareRenewalSpikePct: 20,
+    // Anomalies — Procurement
+    procurementNewVendor: true,
+    procurementNewVendorAmount: 1000,
+    procurementVendorSpike: true,
+    procurementVendorSpikePct: 50,
+    anomalyAdditionalContext: '',
 
     // Review Thresholds
+    reviewRiskTolerance: 'medium',
+    reviewMonthlyCapacity: 50,
     reviewHighAmount: 500,
     reviewAlwaysFraud: true,
     reviewAlwaysAnomaly: true,
@@ -64,12 +103,18 @@ function App() {
 
     // Auto-Close Rules
     autoCloseAmount: 25,
+    autoCloseMissingDocs: true,
+    autoCloseMissingDocsAmount: 50,
     autoCloseFirstTime: true,
     autoCloseResolved: true,
     autoCloseNoResponseDays: 7,
+    autoCloseAdditionalContext: '',
   })
 
   const currentStep = STEPS[currentStepIndex].id
+  const hasTravel = answers.spendCategories.includes('travel')
+  const hasSoftware = answers.spendCategories.includes('software')
+  const hasProcurement = answers.spendCategories.includes('procurement')
 
   const nextStep = () => {
     if (currentStepIndex < STEPS.length - 1) setCurrentStepIndex(i => i + 1)
@@ -83,6 +128,15 @@ function App() {
 
   const set = (key, value) => setAnswers(prev => ({ ...prev, [key]: value }))
 
+  const toggleCategory = (id) => {
+    setAnswers(prev => ({
+      ...prev,
+      spendCategories: prev.spendCategories.includes(id)
+        ? prev.spendCategories.filter(c => c !== id)
+        : [...prev.spendCategories, id]
+    }))
+  }
+
   const handleFileUpload = (e) => {
     const file = e.target.files[0]
     if (file) setPolicyFile(file.name)
@@ -90,11 +144,15 @@ function App() {
 
   const generateDocuments = () => {
     const yesNo = (val) => val ? 'Yes' : 'No'
+    const selectedCategories = SPEND_CATEGORIES.filter(c => answers.spendCategories.includes(c.id)).map(c => c.label)
 
     const auditRules = `# Audit Rules
 
+## Spend Categories
+${selectedCategories.length > 0 ? selectedCategories.map(c => `- ${c}`).join('\n') : '- Not specified'}
+
 ## Fraud Signals
-*These are flagged regardless of amount and always require human review.*
+*Signals that trigger case creation when detected. Escalation or auto-close behavior is governed by the Review Instructions.*
 
 | Signal | Enabled | Risk Level |
 |--------|---------|------------|
@@ -104,20 +162,35 @@ function App() {
 | Cash-equivalent purchases (gift cards, crypto) | ${yesNo(answers.fraudCashEquiv)} | High |
 | Split transactions / threshold clustering | ${yesNo(answers.fraudSplits)} | High |
 | Clear personal expense signals (family names, home addresses) | ${yesNo(answers.fraudPersonalSignals)} | High |
-
+${hasTravel ? `| Same-day airfare or hotel bookings | ${yesNo(answers.fraudTravelSameDay)} | Medium |
+| Personal travel add-ons (upgrades, incidentals) | ${yesNo(answers.fraudTravelPersonalAddons)} | Medium |
+| Mileage claims without travel context | ${yesNo(answers.fraudTravelMileage)} | Medium |` : ''}
+${hasSoftware ? `| Duplicate tool purchases (shadow IT) | ${yesNo(answers.fraudSoftwareDuplicate)} | Medium |
+| Personal software subscriptions | ${yesNo(answers.fraudSoftwarePersonal)} | Medium |` : ''}
+${answers.fraudAdditionalContext ? `\n### Additional Context\n${answers.fraudAdditionalContext}\n` : ''}
 ## Spending Anomalies
-*Behavioral flags that may indicate misuse even when individual transactions look valid.*
+*Behavioral patterns that trigger case creation. Escalation or auto-close behavior is governed by the Review Instructions.*
 
 | Anomaly | Enabled | Threshold | Risk Level |
 |---------|---------|-----------|------------|
-| Spend >2x employee's historical average | ${yesNo(answers.anomalyHistorical)} | — | Medium |
+| Spend >${answers.anomalyHistoricalPct}% above employee's historical average | ${yesNo(answers.anomalyHistorical)} | — | Medium |
 | Geographic mismatch (no travel context) | ${yesNo(answers.anomalyGeoMismatch)} | Above $${answers.anomalyGeoAmount} | Medium |
 | Late submission | ${yesNo(answers.anomalyLateSubmission)} | >${answers.anomalyLateDays} days after transaction | Low |
-| First-time vendor | ${yesNo(answers.anomalyNewVendor)} | Above $${answers.anomalyNewVendorAmount} | Medium |
+${!hasProcurement ? `| First-time vendor | ${yesNo(answers.anomalyNewVendor)} | Above $${answers.anomalyNewVendorAmount} | Medium |` : ''}
 | Repeat violator | ${yesNo(answers.anomalyRepeatViolator)} | >${answers.anomalyRepeatCount} violations/month OR cumulative >$${answers.anomalyRepeatAmount} | Medium |
-`
+${hasTravel ? `| Per diem above city rate | ${yesNo(answers.travelPerDiem)} | >${answers.travelPerDiemPct}% above standard rate | Low |
+| Meal expenses on weekends or holidays (no business context) | ${yesNo(answers.travelWeekendMeals)} | — | Low |` : ''}
+${hasSoftware ? `| New SaaS subscription (unapproved) | ${yesNo(answers.softwareNewSubscription)} | Above $${answers.softwareNewSubscriptionAmount} | Medium |
+| Auto-renewal price spike | ${yesNo(answers.softwareRenewalSpike)} | >${answers.softwareRenewalSpikePct}% increase vs. prior period | Low |` : ''}
+${hasProcurement ? `| New vendor spend | ${yesNo(answers.procurementNewVendor)} | Above $${answers.procurementNewVendorAmount} | Medium |
+| Significant vendor spend change | ${yesNo(answers.procurementVendorSpike)} | >${answers.procurementVendorSpikePct}% increase vs. prior period | Medium |` : ''}
+${answers.anomalyAdditionalContext ? `\n### Additional Context\n${answers.anomalyAdditionalContext}\n` : ''}`
 
     const reviewSOP = `# Review Instructions
+
+## Configuration
+- **Risk tolerance:** ${answers.reviewRiskTolerance.charAt(0).toUpperCase() + answers.reviewRiskTolerance.slice(1)} — ${answers.reviewRiskTolerance === 'low' ? 'err on the side of review; flag borderline cases' : answers.reviewRiskTolerance === 'medium' ? 'balanced; escalate clear violations and anomalies' : 'only escalate clear or high-value violations'}
+- **Monthly review capacity:** ${answers.reviewMonthlyCapacity} cases / month
 
 ## When to Review Out-of-Policy Spend
 
@@ -126,7 +199,7 @@ ${answers.reviewAlwaysFraud ? '- Any fraud signal (duplicates, AI receipts, cash
 
 ### Auto-Close (No Review Required)
 - Out-of-policy spend **under $${answers.autoCloseAmount}**
-${answers.autoCloseFirstTime ? '- First-time procedural violations (missing receipt, vague description, incorrect budget)\n' : ''}${answers.autoCloseResolved ? '- Any case where the employee provides documentation that resolves the issue\n' : ''}
+${answers.autoCloseMissingDocs ? `- Missing documentation cases where transaction is under $${answers.autoCloseMissingDocsAmount}\n` : ''}${answers.autoCloseFirstTime ? '- First-time procedural violations (missing receipt, vague description, incorrect budget)\n' : ''}${answers.autoCloseResolved ? '- Any case where the employee provides documentation that resolves the issue\n' : ''}${answers.autoCloseAdditionalContext ? `\n### Additional Context\n${answers.autoCloseAdditionalContext}\n` : ''}
 ### Never Auto-Close
 - Fraud signals (any amount)
 - Spending anomalies involving geographic or behavioral red flags
@@ -275,13 +348,53 @@ ${answers.autoCloseFirstTime ? '- First-time procedural violations (missing rece
             </div>
           )}
 
-          {/* ── STEP 2: Fraud Signals ── */}
+          {/* ── STEP 2: Spend Categories ── */}
+          {currentStep === 'spend-categories' && (
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+              <div className="px-8 py-7 border-b border-neutral-100">
+                <h2 className="text-2xl font-semibold text-neutral-950">Spend Categories</h2>
+                <p className="text-sm text-neutral-500 mt-1">
+                  Which categories make up most of your company's spend? We'll tailor the audit rules to your use case.
+                </p>
+              </div>
+              <div className="px-8 py-8">
+                <div className="grid grid-cols-2 gap-3">
+                  {SPEND_CATEGORIES.map(({ id, label, desc }) => {
+                    const selected = answers.spendCategories.includes(id)
+                    return (
+                      <button
+                        key={id}
+                        onClick={() => toggleCategory(id)}
+                        className={cn(
+                          "p-4 rounded-xl border text-left transition-all",
+                          selected
+                            ? "border-neutral-950 bg-neutral-950 text-white"
+                            : "border-neutral-200 bg-white hover:border-neutral-400"
+                        )}
+                      >
+                        <p className={cn("text-sm font-semibold", selected ? "text-white" : "text-neutral-900")}>{label}</p>
+                        <p className={cn("text-xs mt-0.5", selected ? "text-neutral-300" : "text-neutral-500")}>{desc}</p>
+                      </button>
+                    )
+                  })}
+                </div>
+                <div className="flex gap-3 pt-8 border-t border-neutral-100 mt-8">
+                  <button onClick={prevStep} className="h-10 px-4 rounded-xl bg-neutral-100 text-neutral-700 text-sm font-medium hover:bg-neutral-200 transition-all active:scale-[0.98]">Back</button>
+                  <button onClick={nextStep} className="h-10 px-5 rounded-xl bg-neutral-950 text-neutral-50 text-sm font-medium hover:bg-neutral-800 shadow-sm transition-all active:scale-[0.98]">
+                    {answers.spendCategories.length > 0 ? 'Continue' : 'Skip for now'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── STEP 3: Fraud Signals ── */}
           {currentStep === 'fraud-signals' && (
             <div className="bg-white rounded-xl shadow-sm overflow-hidden">
               <div className="px-8 py-7 border-b border-neutral-100">
                 <h2 className="text-2xl font-semibold text-neutral-950">Fraud Signals</h2>
                 <p className="text-sm text-neutral-500 mt-1">
-                  These are always flagged for human review regardless of amount. Deselect any that don't apply to your organization.
+                  Which potential fraud violations should the audit agent create a case for?
                 </p>
               </div>
               <div className="px-8 py-8 space-y-4">
@@ -293,37 +406,75 @@ ${answers.autoCloseFirstTime ? '- First-time procedural violations (missing rece
                   { key: 'fraudSplits', label: 'Split transactions / threshold clustering', desc: 'Multiple charges just below an approval threshold' },
                   { key: 'fraudPersonalSignals', label: 'Clear personal expense signals', desc: 'Family member names on receipts, personal addresses as destinations' },
                 ].map(({ key, label, desc }) => (
-                  <ToggleRow
-                    key={key}
-                    label={label}
-                    desc={desc}
-                    value={answers[key]}
-                    onChange={(v) => set(key, v)}
-                  />
+                  <ToggleRow key={key} label={label} desc={desc} value={answers[key]} onChange={(v) => set(key, v)} />
                 ))}
+
+                {/* Travel-specific fraud signals */}
+                {hasTravel && (
+                  <CategorySection label="Travel & Expenses">
+                    {[
+                      { key: 'fraudTravelSameDay', label: 'Same-day airfare or hotel bookings', desc: 'Last-minute bookings with no prior travel request or calendar event' },
+                      { key: 'fraudTravelPersonalAddons', label: 'Personal travel add-ons', desc: 'Seat upgrades, checked bags, or hotel incidentals on personal-looking routes' },
+                      { key: 'fraudTravelMileage', label: 'Mileage claims without travel context', desc: 'Reimbursement requests with no corresponding calendar event or trip record' },
+                    ].map(({ key, label, desc }) => (
+                      <ToggleRow key={key} label={label} desc={desc} value={answers[key]} onChange={(v) => set(key, v)} />
+                    ))}
+                  </CategorySection>
+                )}
+
+                {/* Software-specific fraud signals */}
+                {hasSoftware && (
+                  <CategorySection label="Software & SaaS">
+                    {[
+                      { key: 'fraudSoftwareDuplicate', label: 'Duplicate tool purchases', desc: 'Same software bought by multiple employees on individual cards (shadow IT)' },
+                      { key: 'fraudSoftwarePersonal', label: 'Personal software subscriptions', desc: 'Gaming, streaming, personal productivity tools, or non-business apps' },
+                    ].map(({ key, label, desc }) => (
+                      <ToggleRow key={key} label={label} desc={desc} value={answers[key]} onChange={(v) => set(key, v)} />
+                    ))}
+                  </CategorySection>
+                )}
+
+                <div className="pt-2">
+                  <label className="block text-sm font-medium text-neutral-700 mb-1.5">Anything else you'd want flagged?</label>
+                  <textarea
+                    value={answers.fraudAdditionalContext}
+                    onChange={(e) => set('fraudAdditionalContext', e.target.value)}
+                    placeholder="e.g. Flag any expense at a casino or nightclub, flag purchases from specific restricted vendors..."
+                    rows={3}
+                    className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2.5 text-sm text-neutral-900 placeholder:text-neutral-400 resize-none focus-visible:outline-none focus-visible:border-neutral-900 focus-visible:ring-[3px] focus-visible:ring-neutral-900/10"
+                  />
+                </div>
 
                 <NavButtons onBack={prevStep} onNext={nextStep} />
               </div>
             </div>
           )}
 
-          {/* ── STEP 3: Spending Anomalies ── */}
+          {/* ── STEP 4: Spending Anomalies ── */}
           {currentStep === 'spending-anomalies' && (
             <div className="bg-white rounded-xl shadow-sm overflow-hidden">
               <div className="px-8 py-7 border-b border-neutral-100">
                 <h2 className="text-2xl font-semibold text-neutral-950">Spending Anomalies</h2>
                 <p className="text-sm text-neutral-500 mt-1">
-                  Behavioral patterns that may indicate misuse even when individual transactions appear valid.
+                  Which spending anomalies should the audit agent create a case for?
                 </p>
               </div>
               <div className="px-8 py-8 space-y-6">
 
-                <ToggleRow
-                  label="Historical spending spike"
-                  desc="Flag when an employee spends more than 2× their personal historical average in a period"
-                  value={answers.anomalyHistorical}
-                  onChange={(v) => set('anomalyHistorical', v)}
-                />
+                {/* Always-shown anomalies */}
+                <div className="space-y-3">
+                  <ToggleRow
+                    label="Historical spending spike"
+                    desc="Flag when an employee's spend significantly exceeds their personal historical average"
+                    value={answers.anomalyHistorical}
+                    onChange={(v) => set('anomalyHistorical', v)}
+                  />
+                  {answers.anomalyHistorical && (
+                    <div className="ml-6">
+                      <AmountInput label="Flag if spend increases by more than" value={answers.anomalyHistoricalPct} onChange={(v) => set('anomalyHistoricalPct', v)} unit="%" />
+                    </div>
+                  )}
+                </div>
 
                 <div className="space-y-3">
                   <ToggleRow
@@ -353,19 +504,21 @@ ${answers.autoCloseFirstTime ? '- First-time procedural violations (missing rece
                   )}
                 </div>
 
-                <div className="space-y-3">
-                  <ToggleRow
-                    label="First-time vendor"
-                    desc="Spend with a vendor this employee has never used before"
-                    value={answers.anomalyNewVendor}
-                    onChange={(v) => set('anomalyNewVendor', v)}
-                  />
-                  {answers.anomalyNewVendor && (
-                    <div className="ml-6">
-                      <AmountInput label="Flag above" value={answers.anomalyNewVendorAmount} onChange={(v) => set('anomalyNewVendorAmount', v)} />
-                    </div>
-                  )}
-                </div>
+                {!hasProcurement && (
+                  <div className="space-y-3">
+                    <ToggleRow
+                      label="First-time vendor"
+                      desc="Spend with a vendor this employee has never used before"
+                      value={answers.anomalyNewVendor}
+                      onChange={(v) => set('anomalyNewVendor', v)}
+                    />
+                    {answers.anomalyNewVendor && (
+                      <div className="ml-6">
+                        <AmountInput label="Flag above" value={answers.anomalyNewVendorAmount} onChange={(v) => set('anomalyNewVendorAmount', v)} />
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="space-y-3">
                   <ToggleRow
@@ -382,12 +535,110 @@ ${answers.autoCloseFirstTime ? '- First-time procedural violations (missing rece
                   )}
                 </div>
 
+                {/* Dynamic category sections */}
+                {hasTravel && (
+                  <CategorySection label="Travel & Expenses">
+                    <div className="space-y-3">
+                      <ToggleRow
+                        label="Per diem spend above city rate"
+                        desc="Daily meal or lodging spend significantly exceeds standard rates for the destination"
+                        value={answers.travelPerDiem}
+                        onChange={(v) => set('travelPerDiem', v)}
+                      />
+                      {answers.travelPerDiem && (
+                        <div className="ml-6">
+                          <AmountInput label="Flag if more than" value={answers.travelPerDiemPct} onChange={(v) => set('travelPerDiemPct', v)} unit="% above city rate" />
+                        </div>
+                      )}
+                    </div>
+                    <ToggleRow
+                      label="Meal expenses on weekends or holidays"
+                      desc="Meals submitted on days with no business travel or calendar event"
+                      value={answers.travelWeekendMeals}
+                      onChange={(v) => set('travelWeekendMeals', v)}
+                    />
+                  </CategorySection>
+                )}
+
+                {hasSoftware && (
+                  <CategorySection label="Software & SaaS">
+                    <div className="space-y-3">
+                      <ToggleRow
+                        label="New SaaS subscription"
+                        desc="New recurring software charge that hasn't been through IT or procurement approval"
+                        value={answers.softwareNewSubscription}
+                        onChange={(v) => set('softwareNewSubscription', v)}
+                      />
+                      {answers.softwareNewSubscription && (
+                        <div className="ml-6">
+                          <AmountInput label="Flag above" value={answers.softwareNewSubscriptionAmount} onChange={(v) => set('softwareNewSubscriptionAmount', v)} />
+                        </div>
+                      )}
+                    </div>
+                    <div className="space-y-3">
+                      <ToggleRow
+                        label="Auto-renewal price spike"
+                        desc="A recurring subscription renews at a significantly higher price than the prior period"
+                        value={answers.softwareRenewalSpike}
+                        onChange={(v) => set('softwareRenewalSpike', v)}
+                      />
+                      {answers.softwareRenewalSpike && (
+                        <div className="ml-6">
+                          <AmountInput label="Flag if renewal cost increases by more than" value={answers.softwareRenewalSpikePct} onChange={(v) => set('softwareRenewalSpikePct', v)} unit="%" />
+                        </div>
+                      )}
+                    </div>
+                  </CategorySection>
+                )}
+
+                {hasProcurement && (
+                  <CategorySection label="Procurement & Vendors">
+                    <div className="space-y-3">
+                      <ToggleRow
+                        label="New vendor spend"
+                        desc="Spend with a vendor your company has never used before"
+                        value={answers.procurementNewVendor}
+                        onChange={(v) => set('procurementNewVendor', v)}
+                      />
+                      {answers.procurementNewVendor && (
+                        <div className="ml-6">
+                          <AmountInput label="Flag above" value={answers.procurementNewVendorAmount} onChange={(v) => set('procurementNewVendorAmount', v)} />
+                        </div>
+                      )}
+                    </div>
+                    <div className="space-y-3">
+                      <ToggleRow
+                        label="Significant change in vendor spend"
+                        desc="A vendor's monthly spend increases significantly vs. prior period"
+                        value={answers.procurementVendorSpike}
+                        onChange={(v) => set('procurementVendorSpike', v)}
+                      />
+                      {answers.procurementVendorSpike && (
+                        <div className="ml-6">
+                          <AmountInput label="Flag if vendor spend increases by more than" value={answers.procurementVendorSpikePct} onChange={(v) => set('procurementVendorSpikePct', v)} unit="%" />
+                        </div>
+                      )}
+                    </div>
+                  </CategorySection>
+                )}
+
+                <div className="pt-2">
+                  <label className="block text-sm font-medium text-neutral-700 mb-1.5">Anything else you'd want flagged?</label>
+                  <textarea
+                    value={answers.anomalyAdditionalContext}
+                    onChange={(e) => set('anomalyAdditionalContext', e.target.value)}
+                    placeholder="e.g. Flag if an employee submits expenses from the same vendor more than 3 times in a week..."
+                    rows={3}
+                    className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2.5 text-sm text-neutral-900 placeholder:text-neutral-400 resize-none focus-visible:outline-none focus-visible:border-neutral-900 focus-visible:ring-[3px] focus-visible:ring-neutral-900/10"
+                  />
+                </div>
+
                 <NavButtons onBack={prevStep} onNext={nextStep} />
               </div>
             </div>
           )}
 
-          {/* ── STEP 4: Review Thresholds ── */}
+          {/* ── STEP 5: Review Thresholds ── */}
           {currentStep === 'review-thresholds' && (
             <div className="bg-white rounded-xl shadow-sm overflow-hidden">
               <div className="px-8 py-7 border-b border-neutral-100">
@@ -397,6 +648,38 @@ ${answers.autoCloseFirstTime ? '- First-time procedural violations (missing rece
                 </p>
               </div>
               <div className="px-8 py-8 space-y-6">
+
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-3">Risk tolerance for out-of-policy spend</label>
+                  <div className="flex gap-2">
+                    {[
+                      { value: 'low', label: 'Low', desc: 'Review most cases' },
+                      { value: 'medium', label: 'Medium', desc: 'Balanced approach' },
+                      { value: 'high', label: 'High', desc: 'Only flag clear violations' },
+                    ].map(({ value, label, desc }) => (
+                      <button
+                        key={value}
+                        onClick={() => set('reviewRiskTolerance', value)}
+                        className={cn(
+                          "flex-1 py-3 px-4 rounded-xl border text-left transition-all",
+                          answers.reviewRiskTolerance === value
+                            ? "border-neutral-950 bg-neutral-950 text-white"
+                            : "border-neutral-200 bg-white text-neutral-700 hover:border-neutral-400"
+                        )}
+                      >
+                        <p className={cn("text-sm font-semibold", answers.reviewRiskTolerance === value ? "text-white" : "text-neutral-900")}>{label}</p>
+                        <p className={cn("text-xs mt-0.5", answers.reviewRiskTolerance === value ? "text-neutral-300" : "text-neutral-500")}>{desc}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <AmountInput
+                  label="Monthly review capacity (cases your team can handle)"
+                  value={answers.reviewMonthlyCapacity}
+                  onChange={(v) => set('reviewMonthlyCapacity', v)}
+                  unit="cases / month"
+                />
 
                 <AmountInput
                   label="Always escalate to human review if out-of-policy amount exceeds"
@@ -420,7 +703,7 @@ ${answers.autoCloseFirstTime ? '- First-time procedural violations (missing rece
             </div>
           )}
 
-          {/* ── STEP 5: Auto-Close Rules ── */}
+          {/* ── STEP 6: Auto-Close Rules ── */}
           {currentStep === 'auto-close' && (
             <div className="bg-white rounded-xl shadow-sm overflow-hidden">
               <div className="px-8 py-7 border-b border-neutral-100">
@@ -436,6 +719,24 @@ ${answers.autoCloseFirstTime ? '- First-time procedural violations (missing rece
                   value={answers.autoCloseAmount}
                   onChange={(v) => set('autoCloseAmount', v)}
                 />
+
+                <div className="space-y-3">
+                  <ToggleRow
+                    label="Auto-close missing documentation cases"
+                    desc="Cases where the only violation is a missing receipt or attachment"
+                    value={answers.autoCloseMissingDocs}
+                    onChange={(v) => set('autoCloseMissingDocs', v)}
+                  />
+                  {answers.autoCloseMissingDocs && (
+                    <div className="ml-6">
+                      <AmountInput
+                        label="Only if transaction is under"
+                        value={answers.autoCloseMissingDocsAmount}
+                        onChange={(v) => set('autoCloseMissingDocsAmount', v)}
+                      />
+                    </div>
+                  )}
+                </div>
 
                 <ToggleRow
                   label="Auto-close first-time procedural violations"
@@ -458,12 +759,23 @@ ${answers.autoCloseFirstTime ? '- First-time procedural violations (missing rece
                   unit="days"
                 />
 
+                <div className="pt-2">
+                  <label className="block text-sm font-medium text-neutral-700 mb-1.5">Any other cases you'd want to auto-close?</label>
+                  <textarea
+                    value={answers.autoCloseAdditionalContext}
+                    onChange={(e) => set('autoCloseAdditionalContext', e.target.value)}
+                    placeholder="e.g. Auto-close if the employee has fewer than 2 prior violations and the amount is under $100..."
+                    rows={3}
+                    className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2.5 text-sm text-neutral-900 placeholder:text-neutral-400 resize-none focus-visible:outline-none focus-visible:border-neutral-900 focus-visible:ring-[3px] focus-visible:ring-neutral-900/10"
+                  />
+                </div>
+
                 <NavButtons onBack={prevStep} onNext={nextStep} nextLabel="Generate Documents" />
               </div>
             </div>
           )}
 
-          {/* ── STEP 6: Results ── */}
+          {/* ── STEP 7: Results ── */}
           {currentStep === 'results' && (
             <div className="bg-white rounded-xl shadow-sm overflow-hidden">
               <div className="px-8 py-7 border-b border-neutral-100">
@@ -507,6 +819,15 @@ ${answers.autoCloseFirstTime ? '- First-time procedural violations (missing rece
 }
 
 // ── Shared Components ──
+
+function CategorySection({ label, children }) {
+  return (
+    <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-5 py-4 space-y-5">
+      <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">{label}</p>
+      {children}
+    </div>
+  )
+}
 
 function ToggleRow({ label, desc, value, onChange }) {
   return (
