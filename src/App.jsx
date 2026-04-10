@@ -60,6 +60,10 @@ function App() {
     fraudCashEquiv: true,
     fraudSplits: true,
     fraudPersonalSignals: true,
+    fraudEvenDollar: true,
+    fraudEvenDollarCount: 3,
+    fraudBatchSubmission: true,
+    fraudBatchSubmissionCount: 5,
     // Fraud — Travel
     fraudTravelSameDay: true,
     fraudTravelPersonalAddons: true,
@@ -212,7 +216,9 @@ ${selectedCategories.length > 0 ? selectedCategories.map(c => `- ${c}`).join('\n
 | Receipt amount mismatch (claimed > receipt) | ${yesNo(answers.fraudMismatch)} | High |
 | Cash-equivalent purchases (gift cards, crypto) | ${yesNo(answers.fraudCashEquiv)} | High |
 | Split transactions / threshold clustering | ${yesNo(answers.fraudSplits)} | High |
-| Clear personal expense signals (family names, home addresses) | ${yesNo(answers.fraudPersonalSignals)} | High |
+| Clear personal expense signals (family member names, personal addresses, travel outside event dates, personal categories) | ${yesNo(answers.fraudPersonalSignals)} | High |
+| Even-dollar charges (no cents) | ${yesNo(answers.fraudEvenDollar)} | Medium — flag after ${answers.fraudEvenDollarCount}/month |
+| Batch receipt submissions | ${yesNo(answers.fraudBatchSubmission)} | Medium — flag after ${answers.fraudBatchSubmissionCount} receipts on same day |
 ${hasTravel ? `| Same-day airfare or hotel bookings | ${yesNo(answers.fraudTravelSameDay)} | Medium |
 | Personal travel add-ons (upgrades, incidentals) | ${yesNo(answers.fraudTravelPersonalAddons)} | Medium |
 | Mileage claims without travel context | ${yesNo(answers.fraudTravelMileage)} | Medium |` : ''}
@@ -486,10 +492,38 @@ ${answers.autoCloseMissingDocs ? `- Missing documentation cases where transactio
                   { key: 'fraudMismatch', label: 'Receipt amount mismatch', desc: 'Claimed amount exceeds the receipt amount' },
                   { key: 'fraudCashEquiv', label: 'Cash-equivalent purchases', desc: 'Gift cards, money orders, crypto, money transfers' },
                   { key: 'fraudSplits', label: 'Split transactions / threshold clustering', desc: 'Multiple charges just below an approval threshold' },
-                  { key: 'fraudPersonalSignals', label: 'Clear personal expense signals', desc: 'Family member names on receipts, personal addresses as destinations' },
+                  { key: 'fraudPersonalSignals', label: 'Clear personal expense signals', desc: 'Family member names on receipts, personal addresses, travel spend outside of event dates, personal categories (childcare, groceries, personal subscriptions)' },
                 ].map(({ key, label, desc }) => (
                   <ToggleRow key={key} label={label} desc={desc} value={answers[key]} onChange={(v) => set(key, v)} />
                 ))}
+
+                <div className="space-y-3">
+                  <ToggleRow
+                    label="Suspicious even-dollar charges"
+                    desc="Charges with no cents (e.g. $100, $500, $1,000) — real receipts rarely round to exactly zero"
+                    value={answers.fraudEvenDollar}
+                    onChange={(v) => set('fraudEvenDollar', v)}
+                  />
+                  {answers.fraudEvenDollar && (
+                    <div className="ml-6">
+                      <AmountInput label="Flag after" value={answers.fraudEvenDollarCount} onChange={(v) => set('fraudEvenDollarCount', v)} unit="even-dollar charges in a month" />
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  <ToggleRow
+                    label="Batch receipt submissions"
+                    desc="Many receipts uploaded at once — may indicate backdating or fabrication"
+                    value={answers.fraudBatchSubmission}
+                    onChange={(v) => set('fraudBatchSubmission', v)}
+                  />
+                  {answers.fraudBatchSubmission && (
+                    <div className="ml-6">
+                      <AmountInput label="Flag after" value={answers.fraudBatchSubmissionCount} onChange={(v) => set('fraudBatchSubmissionCount', v)} unit="receipts submitted on the same day" />
+                    </div>
+                  )}
+                </div>
 
                 {/* Travel-specific fraud signals */}
                 {hasTravel && (
