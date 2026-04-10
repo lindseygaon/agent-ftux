@@ -1,6 +1,15 @@
 import { useState } from 'react'
 import { cn } from './lib/utils'
 
+const SPEND_CATEGORIES = [
+  { id: 'travel', label: 'Travel & Lodging', icon: '✈️', desc: 'Flights, hotels, ground transport' },
+  { id: 'software', label: 'Software & SaaS', icon: '💻', desc: 'Subscriptions, licenses, tools' },
+  { id: 'procurement', label: 'Procurement & Vendors', icon: '🏭', desc: 'Supplier spend, contracts' },
+  { id: 'marketing', label: 'Marketing & Events', icon: '📣', desc: 'Ads, sponsorships, events' },
+  { id: 'office', label: 'Office & Supplies', icon: '🏢', desc: 'Equipment, facilities, supplies' },
+  { id: 'meals', label: 'Meals & Entertainment', icon: '🍽️', desc: 'Team meals, client entertainment' },
+]
+
 const STEP_SECTIONS = [
   {
     section: 'Upload Policy',
@@ -11,21 +20,22 @@ const STEP_SECTIONS = [
   {
     section: 'Audit Rules',
     steps: [
-      { id: 'fraud-signals', label: 'Fraud Signals', number: 2 },
-      { id: 'spending-anomalies', label: 'Spending Anomalies', number: 3 }
+      { id: 'spend-categories', label: 'Spend Categories', number: 2 },
+      { id: 'fraud-signals', label: 'Fraud Signals', number: 3 },
+      { id: 'spending-anomalies', label: 'Spending Anomalies', number: 4 }
     ]
   },
   {
     section: 'Review Instructions',
     steps: [
-      { id: 'review-thresholds', label: 'Review Thresholds', number: 4 },
-      { id: 'auto-close', label: 'Auto-Close Rules', number: 5 }
+      { id: 'review-thresholds', label: 'Review Thresholds', number: 5 },
+      { id: 'auto-close', label: 'Auto-Close Rules', number: 6 }
     ]
   },
   {
     section: 'Download Documents',
     steps: [
-      { id: 'results', label: 'Review & Download', number: 6 }
+      { id: 'results', label: 'Review & Download', number: 7 }
     ]
   }
 ]
@@ -36,6 +46,9 @@ function App() {
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
   const [policyFile, setPolicyFile] = useState(null)
   const [answers, setAnswers] = useState({
+    // Spend Categories
+    spendCategories: [],
+
     // Fraud Signals
     fraudDuplicates: true,
     fraudAI: true,
@@ -43,6 +56,7 @@ function App() {
     fraudCashEquiv: true,
     fraudSplits: true,
     fraudPersonalSignals: true,
+    fraudAdditionalContext: '',
 
     // Spending Anomalies
     anomalyHistorical: true,
@@ -55,6 +69,7 @@ function App() {
     anomalyRepeatViolator: true,
     anomalyRepeatCount: 3,
     anomalyRepeatAmount: 500,
+    anomalyAdditionalContext: '',
 
     // Review Thresholds
     reviewHighAmount: 500,
@@ -67,6 +82,7 @@ function App() {
     autoCloseFirstTime: true,
     autoCloseResolved: true,
     autoCloseNoResponseDays: 7,
+    autoCloseAdditionalContext: '',
   })
 
   const currentStep = STEPS[currentStepIndex].id
@@ -83,6 +99,16 @@ function App() {
 
   const set = (key, value) => setAnswers(prev => ({ ...prev, [key]: value }))
 
+  const toggleCategory = (id) => {
+    setAnswers(prev => {
+      const cats = prev.spendCategories
+      return {
+        ...prev,
+        spendCategories: cats.includes(id) ? cats.filter(c => c !== id) : [...cats, id]
+      }
+    })
+  }
+
   const handleFileUpload = (e) => {
     const file = e.target.files[0]
     if (file) setPolicyFile(file.name)
@@ -91,10 +117,14 @@ function App() {
   const generateDocuments = () => {
     const yesNo = (val) => val ? 'Yes' : 'No'
 
-    const auditRules = `# Audit Rules
+    const categoryLabels = answers.spendCategories
+      .map(id => SPEND_CATEGORIES.find(c => c.id === id)?.label)
+      .filter(Boolean)
 
+    const auditRules = `# Audit Rules
+${categoryLabels.length > 0 ? `\n## Spend Categories\n${categoryLabels.map(l => `- ${l}`).join('\n')}\n` : ''}
 ## Fraud Signals
-*These are flagged regardless of amount and always require human review.*
+*Potential violations the audit agent will create a case for.*
 
 | Signal | Enabled | Risk Level |
 |--------|---------|------------|
@@ -104,9 +134,9 @@ function App() {
 | Cash-equivalent purchases (gift cards, crypto) | ${yesNo(answers.fraudCashEquiv)} | High |
 | Split transactions / threshold clustering | ${yesNo(answers.fraudSplits)} | High |
 | Clear personal expense signals (family names, home addresses) | ${yesNo(answers.fraudPersonalSignals)} | High |
-
+${answers.fraudAdditionalContext ? `\n### Additional Context\n${answers.fraudAdditionalContext}\n` : ''}
 ## Spending Anomalies
-*Behavioral flags that may indicate misuse even when individual transactions look valid.*
+*Behavioral flags the audit agent will create a case for.*
 
 | Anomaly | Enabled | Threshold | Risk Level |
 |---------|---------|-----------|------------|
@@ -115,7 +145,7 @@ function App() {
 | Late submission | ${yesNo(answers.anomalyLateSubmission)} | >${answers.anomalyLateDays} days after transaction | Low |
 | First-time vendor | ${yesNo(answers.anomalyNewVendor)} | Above $${answers.anomalyNewVendorAmount} | Medium |
 | Repeat violator | ${yesNo(answers.anomalyRepeatViolator)} | >${answers.anomalyRepeatCount} violations/month OR cumulative >$${answers.anomalyRepeatAmount} | Medium |
-`
+${answers.anomalyAdditionalContext ? `\n### Additional Context\n${answers.anomalyAdditionalContext}\n` : ''}`
 
     const reviewSOP = `# Review Instructions
 
@@ -126,7 +156,7 @@ ${answers.reviewAlwaysFraud ? '- Any fraud signal (duplicates, AI receipts, cash
 
 ### Auto-Close (No Review Required)
 - Out-of-policy spend **under $${answers.autoCloseAmount}**
-${answers.autoCloseFirstTime ? '- First-time procedural violations (missing receipt, vague description, incorrect budget)\n' : ''}${answers.autoCloseResolved ? '- Any case where the employee provides documentation that resolves the issue\n' : ''}
+${answers.autoCloseFirstTime ? '- First-time procedural violations (missing receipt, vague description, incorrect budget)\n' : ''}${answers.autoCloseResolved ? '- Any case where the employee provides documentation that resolves the issue\n' : ''}${answers.autoCloseAdditionalContext ? `\n### Additional Auto-Close Context\n${answers.autoCloseAdditionalContext}\n` : ''}
 ### Never Auto-Close
 - Fraud signals (any amount)
 - Spending anomalies involving geographic or behavioral red flags
@@ -275,13 +305,75 @@ ${answers.autoCloseFirstTime ? '- First-time procedural violations (missing rece
             </div>
           )}
 
-          {/* ── STEP 2: Fraud Signals ── */}
+          {/* ── STEP 2: Spend Categories ── */}
+          {currentStep === 'spend-categories' && (
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+              <div className="px-8 py-7 border-b border-neutral-100">
+                <h2 className="text-2xl font-semibold text-neutral-950">Spend Categories</h2>
+                <p className="text-sm text-neutral-500 mt-1">
+                  Which categories best describe your organization's typical spend? We'll use this to tailor the audit rules to your use case.
+                </p>
+              </div>
+              <div className="px-8 py-8">
+                <div className="grid grid-cols-2 gap-3">
+                  {SPEND_CATEGORIES.map(({ id, label, icon, desc }) => {
+                    const selected = answers.spendCategories.includes(id)
+                    return (
+                      <button
+                        key={id}
+                        onClick={() => toggleCategory(id)}
+                        className={cn(
+                          "flex items-start gap-3 p-4 rounded-xl border text-left transition-all",
+                          selected
+                            ? "border-orange-300 bg-orange-50 shadow-sm"
+                            : "border-neutral-200 bg-white hover:border-neutral-300 hover:bg-neutral-50"
+                        )}
+                      >
+                        <span className="text-xl shrink-0 mt-0.5">{icon}</span>
+                        <div>
+                          <p className={cn(
+                            "text-sm font-medium",
+                            selected ? "text-orange-900" : "text-neutral-900"
+                          )}>{label}</p>
+                          <p className="text-xs text-neutral-500 mt-0.5">{desc}</p>
+                        </div>
+                        {selected && (
+                          <div className="ml-auto shrink-0">
+                            <svg className="w-4 h-4 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                <div className="flex gap-3 pt-8 border-t border-neutral-100 mt-8">
+                  <button
+                    onClick={prevStep}
+                    className="h-10 px-4 rounded-xl bg-neutral-100 text-neutral-700 text-sm font-medium hover:bg-neutral-200 transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-300/50"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={nextStep}
+                    className="h-10 px-5 rounded-xl bg-neutral-950 text-neutral-50 text-sm font-medium hover:bg-neutral-800 shadow-sm transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-950/30"
+                  >
+                    {answers.spendCategories.length > 0 ? 'Continue' : 'Skip for now'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── STEP 3: Fraud Signals ── */}
           {currentStep === 'fraud-signals' && (
             <div className="bg-white rounded-xl shadow-sm overflow-hidden">
               <div className="px-8 py-7 border-b border-neutral-100">
                 <h2 className="text-2xl font-semibold text-neutral-950">Fraud Signals</h2>
                 <p className="text-sm text-neutral-500 mt-1">
-                  These are always flagged for human review regardless of amount. Deselect any that don't apply to your organization.
+                  Which potential fraud violations should the audit agent create a case for?
                 </p>
               </div>
               <div className="px-8 py-8 space-y-4">
@@ -302,18 +394,31 @@ ${answers.autoCloseFirstTime ? '- First-time procedural violations (missing rece
                   />
                 ))}
 
+                <div className="pt-2">
+                  <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                    Anything else you'd want the audit agent to flag?
+                  </label>
+                  <textarea
+                    value={answers.fraudAdditionalContext}
+                    onChange={(e) => set('fraudAdditionalContext', e.target.value)}
+                    placeholder="e.g. Flag any expense over $200 at a bar or nightclub, even with a valid receipt..."
+                    rows={3}
+                    className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2.5 text-sm text-neutral-900 placeholder:text-neutral-400 shadow-xs resize-none transition-colors focus-visible:outline-none focus-visible:border-neutral-900 focus-visible:ring-[3px] focus-visible:ring-neutral-900/10"
+                  />
+                </div>
+
                 <NavButtons onBack={prevStep} onNext={nextStep} />
               </div>
             </div>
           )}
 
-          {/* ── STEP 3: Spending Anomalies ── */}
+          {/* ── STEP 4: Spending Anomalies ── */}
           {currentStep === 'spending-anomalies' && (
             <div className="bg-white rounded-xl shadow-sm overflow-hidden">
               <div className="px-8 py-7 border-b border-neutral-100">
                 <h2 className="text-2xl font-semibold text-neutral-950">Spending Anomalies</h2>
                 <p className="text-sm text-neutral-500 mt-1">
-                  Behavioral patterns that may indicate misuse even when individual transactions appear valid.
+                  Which spending anomalies should the audit agent create a case for?
                 </p>
               </div>
               <div className="px-8 py-8 space-y-6">
@@ -382,12 +487,25 @@ ${answers.autoCloseFirstTime ? '- First-time procedural violations (missing rece
                   )}
                 </div>
 
+                <div className="pt-2">
+                  <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                    Anything else you'd want the audit agent to flag?
+                  </label>
+                  <textarea
+                    value={answers.anomalyAdditionalContext}
+                    onChange={(e) => set('anomalyAdditionalContext', e.target.value)}
+                    placeholder="e.g. Flag if an employee submits more than 10 expenses in a single day, even if each is within policy..."
+                    rows={3}
+                    className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2.5 text-sm text-neutral-900 placeholder:text-neutral-400 shadow-xs resize-none transition-colors focus-visible:outline-none focus-visible:border-neutral-900 focus-visible:ring-[3px] focus-visible:ring-neutral-900/10"
+                  />
+                </div>
+
                 <NavButtons onBack={prevStep} onNext={nextStep} />
               </div>
             </div>
           )}
 
-          {/* ── STEP 4: Review Thresholds ── */}
+          {/* ── STEP 5: Review Thresholds ── */}
           {currentStep === 'review-thresholds' && (
             <div className="bg-white rounded-xl shadow-sm overflow-hidden">
               <div className="px-8 py-7 border-b border-neutral-100">
@@ -420,7 +538,7 @@ ${answers.autoCloseFirstTime ? '- First-time procedural violations (missing rece
             </div>
           )}
 
-          {/* ── STEP 5: Auto-Close Rules ── */}
+          {/* ── STEP 6: Auto-Close Rules ── */}
           {currentStep === 'auto-close' && (
             <div className="bg-white rounded-xl shadow-sm overflow-hidden">
               <div className="px-8 py-7 border-b border-neutral-100">
@@ -458,12 +576,25 @@ ${answers.autoCloseFirstTime ? '- First-time procedural violations (missing rece
                   unit="days"
                 />
 
+                <div className="pt-2">
+                  <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                    Any other cases you'd want to auto-close?
+                  </label>
+                  <textarea
+                    value={answers.autoCloseAdditionalContext}
+                    onChange={(e) => set('autoCloseAdditionalContext', e.target.value)}
+                    placeholder="e.g. Auto-close cases where the manager has already approved the expense offline..."
+                    rows={3}
+                    className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2.5 text-sm text-neutral-900 placeholder:text-neutral-400 shadow-xs resize-none transition-colors focus-visible:outline-none focus-visible:border-neutral-900 focus-visible:ring-[3px] focus-visible:ring-neutral-900/10"
+                  />
+                </div>
+
                 <NavButtons onBack={prevStep} onNext={nextStep} nextLabel="Generate Documents" />
               </div>
             </div>
           )}
 
-          {/* ── STEP 6: Results ── */}
+          {/* ── STEP 7: Results ── */}
           {currentStep === 'results' && (
             <div className="bg-white rounded-xl shadow-sm overflow-hidden">
               <div className="px-8 py-7 border-b border-neutral-100">
