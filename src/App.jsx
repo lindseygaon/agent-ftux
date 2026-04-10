@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react'
-import { SPEND_CATEGORIES, RISK_TOLERANCE_DEFAULTS, REVIEW_CAPACITY_DEFAULTS } from './constants'
+import { useState } from 'react'
 import { cn } from './lib/utils'
 
 const STEP_SECTIONS = [
@@ -10,325 +9,131 @@ const STEP_SECTIONS = [
     ]
   },
   {
-    section: 'Define Audit Rules',
+    section: 'Audit Rules',
     steps: [
-      { id: 'amount-thresholds', label: 'Amount Thresholds', number: 2 },
-      { id: 'expense-categories', label: 'Expense Categories', number: 3 },
-      { id: 'risk-tolerance', label: 'Risk Tolerance', number: 4 },
-      { id: 'fraud-detection', label: 'Fraud Detection', number: 5 },
-      { id: 'spending-patterns', label: 'Spending Patterns', number: 6 },
-      { id: 'amount-thresholds-audit', label: 'Audit Thresholds', number: 7 },
-      { id: 'category-rules', label: 'Category Rules', number: 8 }
+      { id: 'fraud-signals', label: 'Fraud Signals', number: 2 },
+      { id: 'spending-anomalies', label: 'Spending Anomalies', number: 3 }
     ]
   },
   {
-    section: 'Outline Review Instructions',
+    section: 'Review Instructions',
     steps: [
-      { id: 'review-capacity', label: 'Review Capacity', number: 9 },
-      { id: 'auto-close', label: 'Auto-Close Rules', number: 10 },
-      { id: 'escalation', label: 'Escalation Triggers', number: 11 }
+      { id: 'review-thresholds', label: 'Review Thresholds', number: 4 },
+      { id: 'auto-close', label: 'Auto-Close Rules', number: 5 }
     ]
   },
   {
     section: 'Download Documents',
     steps: [
-      { id: 'results', label: 'Review & Download', number: 12 }
+      { id: 'results', label: 'Review & Download', number: 6 }
     ]
   }
 ]
 
-// Flatten steps for indexing
-const STEPS = STEP_SECTIONS.flatMap(section => section.steps)
+const STEPS = STEP_SECTIONS.flatMap(s => s.steps)
 
 function App() {
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
   const [policyFile, setPolicyFile] = useState(null)
   const [answers, setAnswers] = useState({
-    // Step 1: Policy confirmation
-    receiptThreshold: 75,
-    perDiemLimit: 75,
-    hotelLimit: '',
-    giftLimit: '',
-    selectedCategories: [],
-
-    // Step 2: Risk tolerance
-    riskTolerance: 'balanced',
-
-    // Step 3: Universal rules (will be auto-filled based on risk tolerance)
+    // Fraud Signals
     fraudDuplicates: true,
     fraudAI: true,
-    fraudMismatches: true,
+    fraudMismatch: true,
     fraudCashEquiv: true,
     fraudSplits: true,
-    patternAnomalies: true,
-    patternGeoMismatch: true,
-    patternLateSubmission: true,
+    fraudPersonalSignals: true,
 
-    // Step 4: Category-specific (conditional)
-    travelManagedTool: 'all',
-    travelFlagUpgrades: true,
-    travelFlagNoContext: true,
-    travelFlagExtensions: true,
-    mealsAttendeeThreshold: 75,
-    mealsFlag1on1: false,
-    mealsFlagPersonalBudget: true,
-    transportFlagPremium: true,
-    transportFlagPersonal: true,
-    transportRentalThreshold: 75,
-    equipmentPurchaseThreshold: 75,
-    equipmentFlagNoReceipt: true,
-    eventsFlagOutsideDates: true,
-    eventsFlagAfterEnd: true,
-    giftsThreshold: 100,
-    giftsFlagNoRecipient: true,
-    softwareFlagDuplicates: true,
-    softwareFlagPersonal: true,
-    softwareFlagNoPurpose: true,
-    developmentFlagNoApproval: true,
+    // Spending Anomalies
+    anomalyHistorical: true,
+    anomalyGeoMismatch: true,
+    anomalyGeoAmount: 100,
+    anomalyLateSubmission: true,
+    anomalyLateDays: 30,
+    anomalyNewVendor: true,
+    anomalyNewVendorAmount: 500,
+    anomalyRepeatViolator: true,
+    anomalyRepeatCount: 3,
+    anomalyRepeatAmount: 500,
 
-    // Step 5: Review capacity
-    reviewCapacity: 'medium',
+    // Review Thresholds
+    reviewHighAmount: 500,
+    reviewAlwaysFraud: true,
+    reviewAlwaysAnomaly: true,
+    reviewAlwaysRepeat: true,
 
-    // Step 6-7: Auto-close and escalation (will be auto-filled)
-    autoCloseFirstTimeTypes: ['receipt', 'budget', 'overage']
+    // Auto-Close Rules
+    autoCloseAmount: 25,
+    autoCloseFirstTime: true,
+    autoCloseResolved: true,
+    autoCloseNoResponseDays: 7,
   })
-
-  // Apply risk tolerance defaults when risk tolerance changes
-  useEffect(() => {
-    if (answers.riskTolerance) {
-      const defaults = RISK_TOLERANCE_DEFAULTS[answers.riskTolerance]
-      setAnswers(prev => ({
-        ...prev,
-        highPrioritySingle: defaults.highPrioritySingle,
-        largeTransaction: defaults.largeTransaction,
-        missingReceipt: defaults.missingReceipt,
-        missingMemo: defaults.missingMemo,
-        smallViolation: defaults.smallViolation,
-        patternThreshold: defaults.patternThreshold,
-        geoMismatchAmount: defaults.geoMismatchAmount,
-        lateSubmissionDays: defaults.lateSubmissionDays,
-        newVendorAmount: defaults.newVendorAmount,
-        repeatViolationAmount: defaults.repeatViolationAmount
-      }))
-    }
-  }, [answers.riskTolerance])
-
-  // Apply review capacity defaults when capacity changes
-  useEffect(() => {
-    if (answers.reviewCapacity) {
-      const defaults = REVIEW_CAPACITY_DEFAULTS[answers.reviewCapacity]
-      setAnswers(prev => ({
-        ...prev,
-        autoCloseAmount: defaults.autoCloseAmount,
-        autoCloseFirstTime: defaults.autoCloseFirstTime,
-        autoCloseResolved: defaults.autoCloseResolved,
-        escalateAmount: defaults.escalateAmount,
-        escalateRepeatsCount: defaults.escalateRepeatsCount,
-        escalateCumulativeAmount: defaults.escalateCumulativeAmount,
-        escalateNoResponseDays: defaults.escalateNoResponseDays
-      }))
-    }
-  }, [answers.reviewCapacity])
 
   const currentStep = STEPS[currentStepIndex].id
 
   const nextStep = () => {
-    if (currentStepIndex < STEPS.length - 1) {
-      setCurrentStepIndex(currentStepIndex + 1)
-    }
+    if (currentStepIndex < STEPS.length - 1) setCurrentStepIndex(i => i + 1)
   }
-
   const prevStep = () => {
-    if (currentStepIndex > 0) {
-      setCurrentStepIndex(currentStepIndex - 1)
-    }
+    if (currentStepIndex > 0) setCurrentStepIndex(i => i - 1)
   }
-
   const goToStep = (index) => {
-    setCurrentStepIndex(index)
+    if (index <= currentStepIndex) setCurrentStepIndex(index)
   }
 
-  const handleAnswer = (key, value) => {
-    setAnswers(prev => ({ ...prev, [key]: value }))
-  }
-
-  const handleCategoryToggle = (categoryId) => {
-    setAnswers(prev => ({
-      ...prev,
-      selectedCategories: prev.selectedCategories.includes(categoryId)
-        ? prev.selectedCategories.filter(id => id !== categoryId)
-        : [...prev.selectedCategories, categoryId]
-    }))
-  }
+  const set = (key, value) => setAnswers(prev => ({ ...prev, [key]: value }))
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0]
-    if (file) {
-      setPolicyFile(file.name)
-      // Mock extraction - in production, this would parse the document
-      setAnswers(prev => ({
-        ...prev,
-        receiptThreshold: 75,
-        perDiemLimit: 75,
-        selectedCategories: ['travel', 'meals', 'transport', 'events']
-      }))
-    }
+    if (file) setPolicyFile(file.name)
   }
 
   const generateDocuments = () => {
-    const getTravelToolText = () => {
-      const val = answers.travelManagedTool
-      if (val === 'all') return 'Flag all travel (hotels + flights) booked outside managed travel tool'
-      if (val === 'hotels') return 'Flag hotels booked outside managed travel tool'
-      if (val === 'flights') return 'Flag flights booked outside managed travel tool'
-      if (val === 'none') return 'Not applicable (no managed travel tool)'
-      return 'Not specified'
-    }
+    const yesNo = (val) => val ? 'Yes' : 'No'
 
-    const getRiskLevel = () => {
-      if (answers.riskTolerance === 'strict') return 'Strict — Flag any deviation from policy'
-      if (answers.riskTolerance === 'balanced') return 'Balanced — Flag clear violations and patterns'
-      if (answers.riskTolerance === 'lenient') return 'Lenient — Only flag fraud and significant violations'
-      return 'Not specified'
-    }
+    const auditRules = `# Audit Rules
 
-    const auditRules = `# Expense Audit Rules
+## Fraud Signals
+*These are flagged regardless of amount and always require human review.*
 
-## Risk Tolerance
+| Signal | Enabled | Risk Level |
+|--------|---------|------------|
+| Duplicate receipts | ${yesNo(answers.fraudDuplicates)} | High |
+| AI-generated or modified receipts | ${yesNo(answers.fraudAI)} | High |
+| Receipt amount mismatch (claimed > receipt) | ${yesNo(answers.fraudMismatch)} | High |
+| Cash-equivalent purchases (gift cards, crypto) | ${yesNo(answers.fraudCashEquiv)} | High |
+| Split transactions / threshold clustering | ${yesNo(answers.fraudSplits)} | High |
+| Clear personal expense signals (family names, home addresses) | ${yesNo(answers.fraudPersonalSignals)} | High |
 
-${getRiskLevel()}
+## Spending Anomalies
+*Behavioral flags that may indicate misuse even when individual transactions look valid.*
 
-## Spend Categories in Scope
-
-${answers.selectedCategories.map(cat => {
-  const category = SPEND_CATEGORIES.find(c => c.id === cat)
-  return `- ${category.label}`
-}).join('\n')}
-
-## Universal Rules
-
-### Fraud Detection (Always Monitored)
-
-- Duplicate receipts: ${answers.fraudDuplicates ? 'Yes' : 'No'}
-- AI-generated or modified receipts: ${answers.fraudAI ? 'Yes' : 'No'}
-- Receipt amount mismatches: ${answers.fraudMismatches ? 'Yes' : 'No'}
-- Cash-equivalent purchases: ${answers.fraudCashEquiv ? 'Yes' : 'No'}
-- Split transactions: ${answers.fraudSplits ? 'Yes' : 'No'}
-
-### Spending Patterns
-
-- Spending anomalies (>2x historical average): ${answers.patternAnomalies ? 'Yes' : 'No'}
-- Geographic mismatches above: $${answers.geoMismatchAmount || '___'}
-- Late submissions after: ${answers.lateSubmissionDays || '___'} days
-- New vendor spend above: $${answers.newVendorAmount || '___'}
-- Repeat violations cumulative above: $${answers.repeatViolationAmount || '___'}
-
-### Amount Thresholds
-
-**High-priority (immediate escalation):**
-- Single violation over: $${answers.highPrioritySingle || '___'}
-
-**Medium-priority (investigate):**
-- Large single transaction: $${answers.largeTransaction || '___'}
-- Missing receipt above: $${answers.missingReceipt || '___'}
-- Missing memo/business purpose above: $${answers.missingMemo || '___'}
-
-**Low-priority (pattern monitoring):**
-- Small violation threshold: $${answers.smallViolation || '___'}
-- Pattern threshold (cumulative): $${answers.patternThreshold || '___'}
-
-## Category-Specific Rules
-
-${answers.selectedCategories.includes('travel') ? `### Travel & Lodging
-
-- Managed travel tool: ${getTravelToolText()}
-- Flag flight upgrades: ${answers.travelFlagUpgrades ? 'Yes' : 'No'}
-- Flag hotel stays with no trip context: ${answers.travelFlagNoContext ? 'Yes' : 'No'}
-- Flag personal trip extensions: ${answers.travelFlagExtensions ? 'Yes' : 'No'}
-` : ''}
-
-${answers.selectedCategories.includes('meals') ? `### Meals & Entertainment
-
-- Flag meals above $${answers.mealsAttendeeThreshold || '___'} per person with no attendees listed
-- Flag 1-on-1 meals: ${answers.mealsFlag1on1 ? 'Yes' : 'No'}
-- Flag meals on personal budget: ${answers.mealsFlagPersonalBudget ? 'Yes' : 'No'}
-` : ''}
-
-${answers.selectedCategories.includes('transport') ? `### Ground Transportation
-
-- Flag premium rideshare: ${answers.transportFlagPremium ? 'Yes' : 'No'}
-- Flag rides with personal destinations: ${answers.transportFlagPersonal ? 'Yes' : 'No'}
-- Flag car rentals over: $${answers.transportRentalThreshold || '___'}/day
-` : ''}
-
-${answers.selectedCategories.includes('equipment') ? `### Equipment & Office Supplies
-
-- Flag single purchases over: $${answers.equipmentPurchaseThreshold || '___'} without itemized receipt
-- Flag purchases without itemized receipt: ${answers.equipmentFlagNoReceipt ? 'Yes' : 'No'}
-` : ''}
-
-${answers.selectedCategories.includes('events') ? `### Events & Offsites
-
-- Flag spend outside event dates: ${answers.eventsFlagOutsideDates ? 'Yes' : 'No'}
-- Flag T&E charges after event end: ${answers.eventsFlagAfterEnd ? 'Yes' : 'No'}
-` : ''}
-
-${answers.selectedCategories.includes('gifts') ? `### Client Gifts & Entertainment
-
-- Flag gifts over: $${answers.giftsThreshold || '___'}
-- Flag gifts with no recipient/purpose: ${answers.giftsFlagNoRecipient ? 'Yes' : 'No'}
-` : ''}
-
-${answers.selectedCategories.includes('software') ? `### Software Subscriptions
-
-- Flag duplicate subscriptions: ${answers.softwareFlagDuplicates ? 'Yes' : 'No'}
-- Flag personal-category software: ${answers.softwareFlagPersonal ? 'Yes' : 'No'}
-- Flag recurring charges with no business purpose: ${answers.softwareFlagNoPurpose ? 'Yes' : 'No'}
-` : ''}
-
-${answers.selectedCategories.includes('development') ? `### Professional Development
-
-- Flag conferences without approval: ${answers.developmentFlagNoApproval ? 'Yes' : 'No'}
-` : ''}
+| Anomaly | Enabled | Threshold | Risk Level |
+|---------|---------|-----------|------------|
+| Spend >2x employee's historical average | ${yesNo(answers.anomalyHistorical)} | — | Medium |
+| Geographic mismatch (no travel context) | ${yesNo(answers.anomalyGeoMismatch)} | Above $${answers.anomalyGeoAmount} | Medium |
+| Late submission | ${yesNo(answers.anomalyLateSubmission)} | >${answers.anomalyLateDays} days after transaction | Low |
+| First-time vendor | ${yesNo(answers.anomalyNewVendor)} | Above $${answers.anomalyNewVendorAmount} | Medium |
+| Repeat violator | ${yesNo(answers.anomalyRepeatViolator)} | >${answers.anomalyRepeatCount} violations/month OR cumulative >$${answers.anomalyRepeatAmount} | Medium |
 `
-
-    const getReviewCapacity = () => {
-      if (answers.reviewCapacity === 'high') return 'High capacity — We can review most cases (100+ per month)'
-      if (answers.reviewCapacity === 'medium') return 'Medium capacity — We review significant issues (50-100 per month)'
-      if (answers.reviewCapacity === 'low') return 'Low capacity — Only critical issues (< 50 per month)'
-      return 'Not specified'
-    }
 
     const reviewSOP = `# Review Instructions
 
-## Review Capacity
+## When to Review Out-of-Policy Spend
 
-${getReviewCapacity()}
+### Always Requires Human Review
+${answers.reviewAlwaysFraud ? '- Any fraud signal (duplicates, AI receipts, cash equivalents, personal signals)\n' : ''}${answers.reviewAlwaysAnomaly ? '- Spending anomalies (geo mismatch, historical spike)\n' : ''}${answers.reviewAlwaysRepeat ? '- Repeat violator cases\n' : ''}- Out-of-policy spend above **$${answers.reviewHighAmount}**
 
-## Auto-Close Rules
+### Auto-Close (No Review Required)
+- Out-of-policy spend **under $${answers.autoCloseAmount}**
+${answers.autoCloseFirstTime ? '- First-time procedural violations (missing receipt, vague description, incorrect budget)\n' : ''}${answers.autoCloseResolved ? '- Any case where the employee provides documentation that resolves the issue\n' : ''}
+### Never Auto-Close
+- Fraud signals (any amount)
+- Spending anomalies involving geographic or behavioral red flags
+- Cases involving repeat violators
 
-- Auto-close violations under: $${answers.autoCloseAmount || '___'}
-- Auto-close first-time procedural issues: ${answers.autoCloseFirstTime ? 'Yes' : 'No'}
-${answers.autoCloseFirstTime ? `  - Types: ${answers.autoCloseFirstTimeTypes.includes('receipt') ? 'Missing receipt/memo' : ''} ${answers.autoCloseFirstTimeTypes.includes('budget') ? 'Incorrect budget assignment' : ''} ${answers.autoCloseFirstTimeTypes.includes('overage') ? 'Minor overage (<$25)' : ''}` : ''}
-- Never auto-close: Duplicate receipts, AI-generated receipts, cash-equivalent purchases, receipt mismatches
-- Auto-close when employee resolves: ${answers.autoCloseResolved ? 'Yes' : 'No'}
-
-## Escalation Triggers
-
-**Amount-based escalation:**
-- Always escalate if amount exceeds: $${answers.escalateAmount || '___'}
-
-**Pattern-based escalation:**
-- Escalate repeat violations after: ${answers.escalateRepeatsCount || '___'} occurrences
-- Escalate cumulative violations when total exceeds: $${answers.escalateCumulativeAmount || '___'}
-
-**Type-based escalation (always escalate):**
-- Suspected fraud (duplicates, AI receipts, split transactions)
-- Prohibited merchant categories
-- Receipt/claim mismatch
-
-**Response time:**
-- Escalate if employee does not respond within: ${answers.escalateNoResponseDays || '___'} days
+## Response Time
+- Escalate if employee does not respond within **${answers.autoCloseNoResponseDays} days**
 `
 
     return { auditRules, reviewSOP }
@@ -344,46 +149,42 @@ ${answers.autoCloseFirstTime ? `  - Types: ${answers.autoCloseFirstTimeTypes.inc
     URL.revokeObjectURL(url)
   }
 
-  const { auditRules, reviewSOP } = currentStep === 'results' ? generateDocuments() : { auditRules: '', reviewSOP: '' }
+  const { auditRules, reviewSOP } = currentStep === 'results'
+    ? generateDocuments()
+    : { auditRules: '', reviewSOP: '' }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-neutral-50 to-neutral-100 flex">
-      {/* Left Sidebar Navigation */}
-      <div className="w-64 bg-white border-r border-neutral-200 p-6 flex flex-col">
+
+      {/* Sidebar */}
+      <div className="w-64 bg-white border-r border-neutral-200 p-6 flex flex-col shrink-0">
         <div className="mb-6">
-          <h1 className="text-lg font-semibold text-neutral-950">Audit Policy Setup</h1>
-          <p className="text-xs text-neutral-600 mt-1">Configure audit rules</p>
+          <h1 className="text-lg font-semibold text-neutral-950">Audit & Review Agent Setup</h1>
         </div>
 
-        {/* Stepper with Sections */}
         <nav className="flex-1 space-y-4 overflow-y-auto">
           {STEP_SECTIONS.map((section, sectionIndex) => {
-            // Find the global index range for this section
-            const sectionStartIndex = STEPS.findIndex(s => s.id === section.steps[0].id)
-            const sectionEndIndex = STEPS.findIndex(s => s.id === section.steps[section.steps.length - 1].id)
-            const isSectionActive = currentStepIndex >= sectionStartIndex && currentStepIndex <= sectionEndIndex
-            const isSectionCompleted = currentStepIndex > sectionEndIndex
+            const sectionStart = STEPS.findIndex(s => s.id === section.steps[0].id)
+            const sectionEnd = STEPS.findIndex(s => s.id === section.steps[section.steps.length - 1].id)
+            const isActive = currentStepIndex >= sectionStart && currentStepIndex <= sectionEnd
+            const isCompleted = currentStepIndex > sectionEnd
 
             return (
               <div key={sectionIndex}>
-                {/* Section Header */}
-                <div className="mb-1.5">
-                  <h3 className={cn(
-                    "text-[10px] font-semibold uppercase tracking-wider px-1",
-                    isSectionActive && "text-orange-700",
-                    isSectionCompleted && "text-green-700",
-                    !isSectionActive && !isSectionCompleted && "text-neutral-500"
-                  )}>
-                    {section.section}
-                  </h3>
-                </div>
+                <h3 className={cn(
+                  "text-[10px] font-semibold uppercase tracking-wider px-1 mb-1.5",
+                  isActive && "text-orange-700",
+                  isCompleted && "text-green-700",
+                  !isActive && !isCompleted && "text-neutral-500"
+                )}>
+                  {section.section}
+                </h3>
 
-                {/* Section Steps */}
                 <div className="space-y-0.5">
                   {section.steps.map((step) => {
                     const globalIndex = STEPS.findIndex(s => s.id === step.id)
-                    const isActive = globalIndex === currentStepIndex
-                    const isCompleted = globalIndex < currentStepIndex
+                    const isStepActive = globalIndex === currentStepIndex
+                    const isStepDone = globalIndex < currentStepIndex
                     const isAccessible = globalIndex <= currentStepIndex
 
                     return (
@@ -393,42 +194,31 @@ ${answers.autoCloseFirstTime ? `  - Types: ${answers.autoCloseFirstTimeTypes.inc
                         disabled={!isAccessible}
                         className={cn(
                           "w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-left transition-all",
-                          isActive && "bg-orange-50 border border-orange-200",
-                          !isActive && isCompleted && "hover:bg-neutral-50 cursor-pointer",
-                          !isActive && !isCompleted && "opacity-50 cursor-not-allowed"
+                          isStepActive && "bg-orange-50 border border-orange-200",
+                          !isStepActive && isStepDone && "hover:bg-neutral-50 cursor-pointer",
+                          !isStepActive && !isStepDone && "opacity-40 cursor-not-allowed"
                         )}
                       >
-                        {/* Step number or checkmark */}
-                        <div
-                          className={cn(
-                            "flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-medium",
-                            isActive && "bg-orange-600 text-white",
-                            isCompleted && "bg-green-600 text-white",
-                            !isActive && !isCompleted && "bg-neutral-200 text-neutral-600"
-                          )}
-                        >
-                          {isCompleted ? (
+                        <div className={cn(
+                          "shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-medium",
+                          isStepActive && "bg-orange-600 text-white",
+                          isStepDone && "bg-green-600 text-white",
+                          !isStepActive && !isStepDone && "bg-neutral-200 text-neutral-600"
+                        )}>
+                          {isStepDone ? (
                             <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                             </svg>
-                          ) : (
-                            step.number
-                          )}
+                          ) : step.number}
                         </div>
-
-                        {/* Step label */}
-                        <div className="flex-1 min-w-0">
-                          <div
-                            className={cn(
-                              "text-xs font-medium truncate",
-                              isActive && "text-orange-900",
-                              !isActive && isCompleted && "text-neutral-700",
-                              !isActive && !isCompleted && "text-neutral-500"
-                            )}
-                          >
-                            {step.label}
-                          </div>
-                        </div>
+                        <span className={cn(
+                          "text-xs font-medium truncate",
+                          isStepActive && "text-orange-900",
+                          !isStepActive && isStepDone && "text-neutral-700",
+                          !isStepActive && !isStepDone && "text-neutral-500"
+                        )}>
+                          {step.label}
+                        </span>
                       </button>
                     )
                   })}
@@ -438,876 +228,385 @@ ${answers.autoCloseFirstTime ? `  - Types: ${answers.autoCloseFirstTimeTypes.inc
           })}
         </nav>
 
-        {/* Progress indicator */}
         <div className="mt-6 pt-4 border-t border-neutral-200">
           <div className="flex items-center justify-between text-xs mb-1.5">
             <span className="text-neutral-600">Progress</span>
-            <span className="font-medium text-neutral-950">
-              {currentStepIndex + 1} of {STEPS.length}
-            </span>
+            <span className="font-medium text-neutral-950">{currentStepIndex + 1} of {STEPS.length}</span>
           </div>
           <div className="h-1.5 bg-neutral-200 rounded-full overflow-hidden">
             <div
               className="h-full bg-orange-600 transition-all duration-300"
               style={{ width: `${((currentStepIndex + 1) / STEPS.length) * 100}%` }}
-            ></div>
+            />
           </div>
         </div>
       </div>
 
-      {/* Main Content Area */}
+      {/* Main Content */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-3xl mx-auto py-8 px-6">
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+        <div className="max-w-2xl mx-auto py-10 px-8">
 
-        {/* STEP 0: Upload */}
-        {currentStep === 'upload' && (
-          <>
-            <div className="px-10 py-8 border-b border-neutral-200">
-              <h2 className="text-3xl font-semibold text-neutral-950 mb-2">Upload Your Expense Policy</h2>
-              <p className="text-base text-neutral-600">We'll help you create audit rules and review instructions that enforce your policy</p>
-            </div>
-            <div className="px-10 py-10">
-              <div className="mb-8">
+          {/* ── STEP 1: Upload ── */}
+          {currentStep === 'upload' && (
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+              <div className="px-8 py-7 border-b border-neutral-100">
+                <h2 className="text-2xl font-semibold text-neutral-950">Upload Your Expense Policy</h2>
+                <p className="text-sm text-neutral-500 mt-1">
+                  Your policy defines what employees can and can't spend. We'll use it as the baseline — the next steps configure what to flag <em>beyond</em> standard policy violations.
+                </p>
+              </div>
+              <div className="px-8 py-8">
+                <label className="block text-sm font-medium text-neutral-700 mb-3">Policy document</label>
                 <input
                   type="file"
                   onChange={handleFileUpload}
                   accept=".pdf,.doc,.docx,.txt"
-                  className="text-sm"
+                  className="text-sm text-neutral-600"
                 />
                 {policyFile && (
-                  <p className="mt-3 text-green-600 text-sm">
-                    ✓ Uploaded: {policyFile}
-                  </p>
+                  <p className="mt-3 text-green-600 text-sm font-medium">✓ {policyFile}</p>
                 )}
+                <div className="flex gap-3 pt-8 border-t border-neutral-100 mt-8">
+                  <button onClick={nextStep} className="h-10 px-5 rounded-xl bg-neutral-950 text-neutral-50 text-sm font-medium hover:bg-neutral-800 shadow-sm transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-950/30">
+                    {policyFile ? 'Continue' : 'Skip for now'}
+                  </button>
+                </div>
               </div>
-              <div className="flex gap-3 pt-6 border-t border-neutral-200 mt-8">
-                <button
-                  onClick={nextStep}
-                  className="h-10 px-4 rounded-xl bg-neutral-950 text-neutral-50 hover:bg-neutral-900 shadow-sm transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-950/50"
-                >
-                  {policyFile ? 'Continue' : 'Skip for Now'}
-                </button>
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* STEP 1: Amount Thresholds */}
-        {currentStep === 'amount-thresholds' && (
-          <>
-            <div className="px-10 py-8 border-b border-neutral-200">
-              <h2 className="text-3xl font-semibold text-neutral-950 mb-2">Step 1: Amount Thresholds</h2>
-              <p className="text-base text-neutral-600">Confirm or adjust key policy thresholds</p>
-            </div>
-            <div className="px-10 py-10">
-              <QuestionInput
-                label="Receipt required above"
-                id="receiptThreshold"
-                answers={answers}
-                handleAnswer={handleAnswer}
-                type="number"
-                unit="USD"
-              />
-              <QuestionInput
-                label="Per diem limit"
-                id="perDiemLimit"
-                answers={answers}
-                handleAnswer={handleAnswer}
-                type="number"
-                unit="USD"
-              />
-              <QuestionInput
-                label="Hotel per night limit (optional)"
-                id="hotelLimit"
-                answers={answers}
-                handleAnswer={handleAnswer}
-                type="number"
-                unit="USD"
-              />
-              <QuestionInput
-                label="Gift limit (optional)"
-                id="giftLimit"
-                answers={answers}
-                handleAnswer={handleAnswer}
-                type="number"
-                unit="USD"
-              />
-
-              <div className="flex gap-3 pt-6 border-t border-neutral-200 mt-8">
-                <button
-                  onClick={prevStep}
-                  className="h-10 px-4 rounded-xl bg-neutral-100 text-neutral-900 hover:bg-neutral-200 transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-300/50"
-                >
-                  Back
-                </button>
-                <button
-                  onClick={nextStep}
-                  className="h-10 px-4 rounded-xl bg-neutral-950 text-neutral-50 hover:bg-neutral-900 shadow-sm transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-950/50"
-                >
-                  Continue
-                </button>
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* STEP 2: Expense Categories */}
-        {currentStep === 'expense-categories' && (
-          <>
-            <div className="px-10 py-8 border-b border-neutral-200">
-              <h2 className="text-3xl font-semibold text-neutral-950 mb-2">Step 2: Expense Categories</h2>
-              <p className="text-base text-neutral-600">Which expense categories are most relevant to your business?</p>
-            </div>
-            <div className="px-10 py-10">
-              {SPEND_CATEGORIES.map(category => (
-                <CategoryCheckbox
-                  key={category.id}
-                  category={category}
-                  selected={answers.selectedCategories.includes(category.id)}
-                  onToggle={handleCategoryToggle}
-                />
-              ))}
-
-              <div className="flex gap-3 pt-6 border-t border-neutral-200 mt-8">
-                <button
-                  onClick={prevStep}
-                  className="h-10 px-4 rounded-xl bg-neutral-100 text-neutral-900 hover:bg-neutral-200 transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-300/50"
-                >
-                  Back
-                </button>
-                <button
-                  onClick={nextStep}
-                  disabled={answers.selectedCategories.length === 0}
-                  className="h-10 px-4 rounded-xl bg-neutral-950 text-neutral-50 hover:bg-neutral-900 shadow-sm transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-950/50 disabled:opacity-50 disabled:pointer-events-none"
-                >
-                  Continue
-                </button>
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* STEP 3: Risk Tolerance */}
-        {currentStep === 'risk-tolerance' && (
-          <>
-            <div className="px-10 py-8 border-b border-neutral-200">
-              <h2 className="text-3xl font-semibold text-neutral-950 mb-2">Step 3: Risk Tolerance</h2>
-              <p className="text-base text-neutral-600">This sets default thresholds for all audit rules</p>
-            </div>
-            <div className="px-10 py-10">
-              <label className="block mb-4 text-base font-medium text-neutral-700">
-                What's your tolerance for policy violations?
-              </label>
-              {[
-                { value: 'strict', label: 'Strict — Flag any deviation from policy', desc: 'Creates more cases, catches minor violations. Recommended for: Organizations with tight compliance requirements.' },
-                { value: 'balanced', label: 'Balanced — Flag clear violations and patterns (Recommended)', desc: 'Focus on meaningful violations and repeated issues. Recommended for: Most organizations.' },
-                { value: 'lenient', label: 'Lenient — Only flag fraud and significant violations', desc: 'Creates fewer cases, focuses on high-impact issues. Recommended for: Small teams with limited review capacity.' }
-              ].map(option => (
-                <RiskOption
-                  key={option.value}
-                  option={option}
-                  selected={answers.riskTolerance === option.value}
-                  onSelect={() => handleAnswer('riskTolerance', option.value)}
-                />
-              ))}
-
-              <div className="flex gap-3 pt-6 border-t border-neutral-200 mt-8">
-                <button
-                  onClick={prevStep}
-                  className="h-10 px-4 rounded-xl bg-neutral-100 text-neutral-900 hover:bg-neutral-200 transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-300/50"
-                >
-                  Back
-                </button>
-                <button
-                  onClick={nextStep}
-                  className="h-10 px-4 rounded-xl bg-neutral-950 text-neutral-50 hover:bg-neutral-900 shadow-sm transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-950/50"
-                >
-                  Continue
-                </button>
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* STEP 4: Fraud Detection */}
-        {currentStep === 'fraud-detection' && (
-          <>
-            <div className="px-10 py-8 border-b border-neutral-200">
-              <h2 className="text-3xl font-semibold text-neutral-950 mb-2">Step 4: Fraud Detection</h2>
-              <p className="text-base text-neutral-600">These fraud signals are always flagged</p>
-            </div>
-            <div className="px-10 py-10">
-              <YesNoToggle label="Duplicate receipts (same receipt submitted multiple times)" id="fraudDuplicates" answers={answers} handleAnswer={handleAnswer} />
-              <YesNoToggle label="AI-generated or modified receipts" id="fraudAI" answers={answers} handleAnswer={handleAnswer} />
-              <YesNoToggle label="Receipt amount mismatches (claimed > receipt amount)" id="fraudMismatches" answers={answers} handleAnswer={handleAnswer} />
-              <YesNoToggle label="Cash-equivalent purchases (gift cards, money transfers, crypto)" id="fraudCashEquiv" answers={answers} handleAnswer={handleAnswer} />
-              <YesNoToggle label="Split transactions (multiple charges just below approval threshold)" id="fraudSplits" answers={answers} handleAnswer={handleAnswer} />
-
-              <div className="flex gap-3 pt-6 border-t border-neutral-200 mt-8">
-                <button
-                  onClick={prevStep}
-                  className="h-10 px-4 rounded-xl bg-neutral-100 text-neutral-900 hover:bg-neutral-200 transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-300/50"
-                >
-                  Back
-                </button>
-                <button
-                  onClick={nextStep}
-                  className="h-10 px-4 rounded-xl bg-neutral-950 text-neutral-50 hover:bg-neutral-900 shadow-sm transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-950/50"
-                >
-                  Continue
-                </button>
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* STEP 5: Spending Patterns */}
-        {currentStep === 'spending-patterns' && (
-          <>
-            <div className="px-10 py-8 border-b border-neutral-200">
-              <h2 className="text-3xl font-semibold text-neutral-950 mb-2">Step 5: Spending Patterns</h2>
-              <p className="text-base text-neutral-600">Configure pattern-based detection rules</p>
-            </div>
-            <div className="px-10 py-10">
-              <YesNoToggle label="Flag when user spends >2x their historical average?" id="patternAnomalies" answers={answers} handleAnswer={handleAnswer} />
-              <YesNoToggle label="Flag spend in distant locations with no travel context?" id="patternGeoMismatch" answers={answers} handleAnswer={handleAnswer} />
-              {answers.patternGeoMismatch && (
-                <QuestionInput label="Above amount" id="geoMismatchAmount" answers={answers} handleAnswer={handleAnswer} />
-              )}
-
-              <QuestionInput label="Flag expenses submitted more than X days after transaction" id="lateSubmissionDays" answers={answers} handleAnswer={handleAnswer} type="number" unit="days" />
-              <QuestionInput label="Flag first-time vendor spend above" id="newVendorAmount" answers={answers} handleAnswer={handleAnswer} />
-              <QuestionInput label="Flag when same user has cumulative violations above" id="repeatViolationAmount" answers={answers} handleAnswer={handleAnswer} />
-
-              <div className="flex gap-3 pt-6 border-t border-neutral-200 mt-8">
-                <button
-                  onClick={prevStep}
-                  className="h-10 px-4 rounded-xl bg-neutral-100 text-neutral-900 hover:bg-neutral-200 transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-300/50"
-                >
-                  Back
-                </button>
-                <button
-                  onClick={nextStep}
-                  className="h-10 px-4 rounded-xl bg-neutral-950 text-neutral-50 hover:bg-neutral-900 shadow-sm transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-950/50"
-                >
-                  Continue
-                </button>
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* STEP 6: Amount Thresholds (Audit) */}
-        {currentStep === 'amount-thresholds-audit' && (
-          <>
-            <div className="px-10 py-8 border-b border-neutral-200">
-              <h2 className="text-3xl font-semibold text-neutral-950 mb-2">Step 6: Audit Amount Thresholds</h2>
-              <p className="text-base text-neutral-600">These values are auto-filled based on your risk tolerance</p>
-            </div>
-            <div className="px-10 py-10">
-              <h4 className="text-base font-medium text-neutral-700 mb-3">High-priority (immediate escalation):</h4>
-              <QuestionInput label="Single violation over" id="highPrioritySingle" answers={answers} handleAnswer={handleAnswer} />
-
-              <h4 className="text-base font-medium text-neutral-700 mt-6 mb-3">Medium-priority (investigate):</h4>
-              <QuestionInput label="Large single transaction" id="largeTransaction" answers={answers} handleAnswer={handleAnswer} />
-              <QuestionInput label="Missing receipt above" id="missingReceipt" answers={answers} handleAnswer={handleAnswer} />
-              <QuestionInput label="Missing memo/business purpose above" id="missingMemo" answers={answers} handleAnswer={handleAnswer} />
-
-              <h4 className="text-base font-medium text-neutral-700 mt-6 mb-3">Low-priority (pattern monitoring):</h4>
-              <QuestionInput label="Small violation threshold" id="smallViolation" answers={answers} handleAnswer={handleAnswer} />
-              <QuestionInput label="Pattern threshold (cumulative)" id="patternThreshold" answers={answers} handleAnswer={handleAnswer} />
-
-              <div className="flex gap-3 pt-6 border-t border-neutral-200 mt-8">
-                <button
-                  onClick={prevStep}
-                  className="h-10 px-4 rounded-xl bg-neutral-100 text-neutral-900 hover:bg-neutral-200 transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-300/50"
-                >
-                  Back
-                </button>
-                <button
-                  onClick={nextStep}
-                  className="h-10 px-4 rounded-xl bg-neutral-950 text-neutral-50 hover:bg-neutral-900 shadow-sm transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-950/50"
-                >
-                  Continue
-                </button>
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* STEP 7: Category-Specific Rules */}
-        {currentStep === 'category-rules' && (
-          <CategoryRulesStep
-            answers={answers}
-            handleAnswer={handleAnswer}
-            nextStep={nextStep}
-            prevStep={prevStep}
-          />
-        )}
-
-        {/* STEP 8: Review Capacity */}
-        {currentStep === 'review-capacity' && (
-          <>
-            <div className="px-10 py-8 border-b border-neutral-200">
-              <h2 className="text-3xl font-semibold text-neutral-950 mb-2">Step 8: Review Capacity</h2>
-              <p className="text-base text-neutral-600">This sets default thresholds for auto-close and escalation</p>
-            </div>
-            <div className="px-10 py-10">
-              <label className="block mb-4 text-base font-medium text-neutral-700">
-                How many cases can your team realistically review per month?
-              </label>
-              {[
-                { value: 'high', label: 'High capacity — We can review most cases (100+ per month)', desc: 'More restrictive auto-close thresholds. Human review for medium and high-risk cases.' },
-                { value: 'medium', label: 'Medium capacity — We review significant issues (50-100 per month) (Recommended)', desc: 'Balanced auto-close thresholds. Auto-close low-risk, review medium/high.' },
-                { value: 'low', label: 'Low capacity — Only critical issues (<50 per month)', desc: 'Generous auto-close thresholds. Only high-risk cases reach human review.' }
-              ].map(option => (
-                <RiskOption
-                  key={option.value}
-                  option={option}
-                  selected={answers.reviewCapacity === option.value}
-                  onSelect={() => handleAnswer('reviewCapacity', option.value)}
-                />
-              ))}
-
-              <div className="flex gap-3 pt-6 border-t border-neutral-200 mt-8">
-                <button
-                  onClick={prevStep}
-                  className="h-10 px-4 rounded-xl bg-neutral-100 text-neutral-900 hover:bg-neutral-200 transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-300/50"
-                >
-                  Back
-                </button>
-                <button
-                  onClick={nextStep}
-                  className="h-10 px-4 rounded-xl bg-neutral-950 text-neutral-50 hover:bg-neutral-900 shadow-sm transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-950/50"
-                >
-                  Continue
-                </button>
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* STEP 9: Auto-Close Rules */}
-        {currentStep === 'auto-close' && (
-          <AutoCloseStep
-            answers={answers}
-            handleAnswer={handleAnswer}
-            nextStep={nextStep}
-            prevStep={prevStep}
-          />
-        )}
-
-        {/* STEP 10: Escalation Triggers */}
-        {currentStep === 'escalation' && (
-          <EscalationStep
-            answers={answers}
-            handleAnswer={handleAnswer}
-            nextStep={nextStep}
-            prevStep={prevStep}
-          />
-        )}
-
-        {/* STEP 11: Results */}
-        {currentStep === 'results' && (
-          <ResultsStep
-            auditRules={auditRules}
-            reviewSOP={reviewSOP}
-            downloadFile={downloadFile}
-            onReset={() => {
-              setCurrentStepIndex(0)
-              setPolicyFile(null)
-              setAnswers({
-                receiptThreshold: 75,
-                perDiemLimit: 75,
-                hotelLimit: '',
-                giftLimit: '',
-                selectedCategories: [],
-                riskTolerance: 'balanced',
-                fraudDuplicates: true,
-                fraudAI: true,
-                fraudMismatches: true,
-                fraudCashEquiv: true,
-                fraudSplits: true,
-                patternAnomalies: true,
-                patternGeoMismatch: true,
-                patternLateSubmission: true,
-                reviewCapacity: 'medium',
-                autoCloseFirstTimeTypes: ['receipt', 'budget', 'overage']
-              })
-            }}
-          />
-        )}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ========== COMPONENT DEFINITIONS ==========
-
-// ========== COMPONENT DEFINITIONS ==========
-
-// QuestionInput: handles number inputs with units, yes/no radio buttons
-function QuestionInput({ label, id, answers, handleAnswer, type = 'number', unit = 'USD' }) {
-  return (
-    <div className="mb-6">
-      <label htmlFor={id} className="block text-sm font-medium text-neutral-700 mb-2">
-        {label}
-      </label>
-      <div className="flex items-center gap-2">
-        {unit === 'USD' && <span className="text-neutral-500 text-base">$</span>}
-        <input
-          id={id}
-          type={type}
-          value={answers[id] || ''}
-          onChange={(e) => handleAnswer(id, e.target.value)}
-          className="h-9 w-full rounded-md border border-neutral-200 bg-transparent px-3 py-1 text-base shadow-xs transition-colors placeholder:text-neutral-500 focus-visible:outline-none focus-visible:border-neutral-900 focus-visible:ring-[3px] focus-visible:ring-neutral-900/20 disabled:opacity-50 disabled:pointer-events-none"
-          style={{ maxWidth: '200px' }}
-        />
-        {unit === 'days' && <span className="text-neutral-500 text-sm">days</span>}
-        {unit === 'occurrences' && <span className="text-neutral-500 text-sm">occurrences</span>}
-      </div>
-    </div>
-  )
-}
-
-// YesNoToggle: Yes/No radio buttons
-function YesNoToggle({ label, id, answers, handleAnswer }) {
-  return (
-    <div className="mb-6">
-      <label className="block text-sm font-medium text-neutral-700 mb-2">
-        {label}
-      </label>
-      <div className="flex gap-4">
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="radio"
-            name={id}
-            checked={answers[id] === true}
-            onChange={() => handleAnswer(id, true)}
-          />
-          <span className="text-sm text-neutral-600">Yes</span>
-        </label>
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="radio"
-            name={id}
-            checked={answers[id] === false}
-            onChange={() => handleAnswer(id, false)}
-          />
-          <span className="text-sm text-neutral-600">No</span>
-        </label>
-      </div>
-    </div>
-  )
-}
-
-// CategoryCheckbox: Expense category selection
-function CategoryCheckbox({ category, selected, onToggle }) {
-  return (
-    <label
-      className={cn(
-        "flex items-center p-3 mb-2 border rounded-lg cursor-pointer transition-all",
-        selected ? "border-2 border-orange-600 bg-orange-50" : "border-neutral-200 bg-white"
-      )}
-    >
-      <input
-        type="checkbox"
-        checked={selected}
-        onChange={() => onToggle(category.id)}
-        className="mr-3 w-[18px] h-[18px] cursor-pointer"
-      />
-      <span className="text-[15px] text-neutral-950">{category.label}</span>
-    </label>
-  )
-}
-
-// RiskOption: Risk tolerance and review capacity selection cards
-function RiskOption({ option, selected, onSelect }) {
-  return (
-    <label
-      className={cn(
-        "block p-4 mb-3 border rounded-lg cursor-pointer transition-all",
-        selected ? "border-2 border-orange-600 bg-orange-50" : "border-neutral-200 bg-white"
-      )}
-    >
-      <div className="flex items-start gap-3">
-        <input
-          type="radio"
-          checked={selected}
-          onChange={onSelect}
-          className="mt-1 cursor-pointer"
-        />
-        <div>
-          <div className="text-base font-semibold text-neutral-950 mb-1">
-            {option.label}
-          </div>
-          <div className="text-sm text-neutral-600">
-            {option.desc}
-          </div>
-        </div>
-      </div>
-    </label>
-  )
-}
-
-// CategoryRulesStep: Step 7 - conditional questions for each selected category
-function CategoryRulesStep({ answers, handleAnswer, nextStep, prevStep }) {
-  const hasCategories = answers.selectedCategories.length > 0
-
-  if (!hasCategories) {
-    return (
-      <>
-        <div className="px-10 py-8 border-b border-neutral-200">
-          <h2 className="text-3xl font-semibold text-neutral-950 mb-2">Step 7: Category-Specific Rules</h2>
-          <p className="text-base text-neutral-600">No categories selected - skipping to review capacity</p>
-        </div>
-        <div className="px-10 py-10">
-          <div className="flex gap-3 pt-6 border-t border-neutral-200 mt-8">
-            <button
-              onClick={prevStep}
-              className="h-10 px-4 rounded-xl bg-neutral-100 text-neutral-900 hover:bg-neutral-200 transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-300/50"
-            >
-              Back
-            </button>
-            <button
-              onClick={nextStep}
-              className="h-10 px-4 rounded-xl bg-neutral-950 text-neutral-50 hover:bg-neutral-900 shadow-sm transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-950/50"
-            >
-              Continue
-            </button>
-          </div>
-        </div>
-      </>
-    )
-  }
-
-  return (
-    <>
-      <div className="px-10 py-8 border-b border-neutral-200">
-        <h2 className="text-3xl font-semibold text-neutral-950 mb-2">Step 7: Category-Specific Rules</h2>
-        <p className="text-base text-neutral-600">Configure rules for your selected expense categories</p>
-      </div>
-      <div className="px-10 py-10">
-        {/* Travel & Lodging */}
-        {answers.selectedCategories.includes('travel') && (
-          <>
-            <h3 className="text-lg font-semibold text-neutral-950 mb-4">Travel & Lodging</h3>
-
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-neutral-700 mb-2">
-                Which travel bookings should be flagged if made outside your managed travel tool?
-              </label>
-              {[
-                { value: 'all', label: 'All (flights + hotels)' },
-                { value: 'hotels', label: 'Hotels only' },
-                { value: 'flights', label: 'Flights only' },
-                { value: 'none', label: 'None (not applicable)' }
-              ].map(option => (
-                <label key={option.value} className="flex items-center gap-2 mb-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="travelManagedTool"
-                    checked={answers.travelManagedTool === option.value}
-                    onChange={() => handleAnswer('travelManagedTool', option.value)}
-                  />
-                  <span className="text-sm text-neutral-600">{option.label}</span>
-                </label>
-              ))}
-            </div>
-
-            <YesNoToggle label="Flag flight upgrades on flights <6 hours?" id="travelFlagUpgrades" answers={answers} handleAnswer={handleAnswer} />
-            <YesNoToggle label="Flag hotel stays with no corresponding trip/travel context?" id="travelFlagNoContext" answers={answers} handleAnswer={handleAnswer} />
-            <YesNoToggle label="Flag personal trip extensions (extra nights before/after business dates)?" id="travelFlagExtensions" answers={answers} handleAnswer={handleAnswer} />
-          </>
-        )}
-
-        {/* Meals & Entertainment */}
-        {answers.selectedCategories.includes('meals') && (
-          <>
-            <h3 className="text-lg font-semibold text-neutral-950 mt-8 mb-4">Meals & Entertainment</h3>
-            <QuestionInput label="Flag meals above X per person with no attendees listed" id="mealsAttendeeThreshold" answers={answers} handleAnswer={handleAnswer} />
-            <YesNoToggle label="Flag 1-on-1 meals (if prohibited by your policy)?" id="mealsFlag1on1" answers={answers} handleAnswer={handleAnswer} />
-            <YesNoToggle label="Flag meals expensed on personal incidentals budget vs event/travel budget?" id="mealsFlagPersonalBudget" answers={answers} handleAnswer={handleAnswer} />
-          </>
-        )}
-
-        {/* Ground Transportation */}
-        {answers.selectedCategories.includes('transport') && (
-          <>
-            <h3 className="text-lg font-semibold text-neutral-950 mt-8 mb-4">Ground Transportation</h3>
-            <YesNoToggle label="Flag premium rideshare (Uber Black, Lyft Lux)?" id="transportFlagPremium" answers={answers} handleAnswer={handleAnswer} />
-            <YesNoToggle label="Flag rides where destination suggests personal use (home, gym)?" id="transportFlagPersonal" answers={answers} handleAnswer={handleAnswer} />
-            <QuestionInput label="Flag car rentals above (per day)" id="transportRentalThreshold" answers={answers} handleAnswer={handleAnswer} />
-          </>
-        )}
-
-        {/* Equipment & Office Supplies */}
-        {answers.selectedCategories.includes('equipment') && (
-          <>
-            <h3 className="text-lg font-semibold text-neutral-950 mt-8 mb-4">Equipment & Office Supplies</h3>
-            <QuestionInput label="Flag single purchases above X without itemized receipt" id="equipmentPurchaseThreshold" answers={answers} handleAnswer={handleAnswer} />
-            <YesNoToggle label="Flag purchases at general merchandise retailers (Amazon, Walmart) without itemized receipt?" id="equipmentFlagNoReceipt" answers={answers} handleAnswer={handleAnswer} />
-          </>
-        )}
-
-        {/* Events & Offsites */}
-        {answers.selectedCategories.includes('events') && (
-          <>
-            <h3 className="text-lg font-semibold text-neutral-950 mt-8 mb-4">Events & Offsites</h3>
-            <YesNoToggle label="Flag spend assigned to an event budget outside the event dates?" id="eventsFlagOutsideDates" answers={answers} handleAnswer={handleAnswer} />
-            <YesNoToggle label="Flag T&E charges on event budgets after event end date?" id="eventsFlagAfterEnd" answers={answers} handleAnswer={handleAnswer} />
-          </>
-        )}
-
-        {/* Client Gifts & Entertainment */}
-        {answers.selectedCategories.includes('gifts') && (
-          <>
-            <h3 className="text-lg font-semibold text-neutral-950 mt-8 mb-4">Client Gifts & Entertainment</h3>
-            <QuestionInput label="Flag gifts above" id="giftsThreshold" answers={answers} handleAnswer={handleAnswer} />
-            <YesNoToggle label="Flag gifts with no recipient name or business purpose documented?" id="giftsFlagNoRecipient" answers={answers} handleAnswer={handleAnswer} />
-          </>
-        )}
-
-        {/* Software Subscriptions */}
-        {answers.selectedCategories.includes('software') && (
-          <>
-            <h3 className="text-lg font-semibold text-neutral-950 mt-8 mb-4">Software Subscriptions</h3>
-            <YesNoToggle label="Flag duplicate subscriptions (same tool, multiple employees)?" id="softwareFlagDuplicates" answers={answers} handleAnswer={handleAnswer} />
-            <YesNoToggle label="Flag personal-category software (streaming, gaming, entertainment)?" id="softwareFlagPersonal" answers={answers} handleAnswer={handleAnswer} />
-            <YesNoToggle label="Flag recurring charges with no clear business purpose?" id="softwareFlagNoPurpose" answers={answers} handleAnswer={handleAnswer} />
-          </>
-        )}
-
-        {/* Professional Development */}
-        {answers.selectedCategories.includes('development') && (
-          <>
-            <h3 className="text-lg font-semibold text-neutral-950 mt-8 mb-4">Professional Development</h3>
-            <YesNoToggle label="Flag conferences or trainings without prior approval signal?" id="developmentFlagNoApproval" answers={answers} handleAnswer={handleAnswer} />
-          </>
-        )}
-
-        <div className="flex gap-3 pt-6 border-t border-neutral-200 mt-8">
-          <button
-            onClick={prevStep}
-            className="h-10 px-4 rounded-xl bg-neutral-100 text-neutral-900 hover:bg-neutral-200 transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-300/50"
-          >
-            Back
-          </button>
-          <button
-            onClick={nextStep}
-            className="h-10 px-4 rounded-xl bg-neutral-950 text-neutral-50 hover:bg-neutral-900 shadow-sm transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-950/50"
-          >
-            Continue
-          </button>
-        </div>
-      </div>
-    </>
-  )
-}
-
-// AutoCloseStep: Step 9 - auto-close rule configuration
-function AutoCloseStep({ answers, handleAnswer, nextStep, prevStep }) {
-  const toggleAutoCloseType = (type) => {
-    const current = answers.autoCloseFirstTimeTypes || []
-    const updated = current.includes(type)
-      ? current.filter(t => t !== type)
-      : [...current, type]
-    handleAnswer('autoCloseFirstTimeTypes', updated)
-  }
-
-  return (
-    <>
-      <div className="px-10 py-8 border-b border-neutral-200">
-        <h2 className="text-3xl font-semibold text-neutral-950 mb-2">Step 9: Auto-Close Rules</h2>
-        <p className="text-base text-neutral-600">Define thresholds for automatic case resolution</p>
-      </div>
-      <div className="px-10 py-10">
-        <p className="text-sm text-neutral-600 mb-6">
-          These values are auto-filled based on your review capacity. Adjust as needed.
-        </p>
-
-        <QuestionInput label="Auto-close violations under" id="autoCloseAmount" answers={answers} handleAnswer={handleAnswer} />
-
-        <div className="mt-8">
-          <YesNoToggle label="Auto-close first-time procedural issues?" id="autoCloseFirstTime" answers={answers} handleAnswer={handleAnswer} />
-
-          {answers.autoCloseFirstTime && (
-            <div className="ml-6 mt-4">
-              <p className="text-sm font-medium text-neutral-700 mb-3">
-                Which types should be auto-closed?
-              </p>
-              {[
-                { id: 'receipt', label: 'Missing receipt or memo' },
-                { id: 'budget', label: 'Incorrect budget/spend limit assignment' },
-                { id: 'overage', label: 'Minor policy overage (<$25)' }
-              ].map(type => (
-                <label
-                  key={type.id}
-                  className="flex items-center p-2 cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={(answers.autoCloseFirstTimeTypes || []).includes(type.id)}
-                    onChange={() => toggleAutoCloseType(type.id)}
-                    className="mr-2 cursor-pointer"
-                  />
-                  <span className="text-sm text-neutral-600">{type.label}</span>
-                </label>
-              ))}
             </div>
           )}
-        </div>
 
-        <div className="mt-8 p-4 bg-amber-50 rounded-lg border border-amber-400">
-          <p className="text-sm font-semibold text-amber-900 mb-2">
-            Never auto-close (always require review):
-          </p>
-          <ul className="m-0 pl-5 text-sm text-amber-900">
-            <li>Duplicate receipts</li>
-            <li>AI-generated or modified receipts</li>
-            <li>Cash-equivalent purchases</li>
-            <li>Receipt amount mismatches</li>
-            <li>Suspected fraud or policy circumvention</li>
-          </ul>
-        </div>
+          {/* ── STEP 2: Fraud Signals ── */}
+          {currentStep === 'fraud-signals' && (
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+              <div className="px-8 py-7 border-b border-neutral-100">
+                <h2 className="text-2xl font-semibold text-neutral-950">Fraud Signals</h2>
+                <p className="text-sm text-neutral-500 mt-1">
+                  These are always flagged for human review regardless of amount. Deselect any that don't apply to your organization.
+                </p>
+              </div>
+              <div className="px-8 py-8 space-y-4">
+                {[
+                  { key: 'fraudDuplicates', label: 'Duplicate receipts', desc: 'Same receipt submitted more than once' },
+                  { key: 'fraudAI', label: 'AI-generated or modified receipts', desc: 'Receipts that appear digitally altered or AI-generated' },
+                  { key: 'fraudMismatch', label: 'Receipt amount mismatch', desc: 'Claimed amount exceeds the receipt amount' },
+                  { key: 'fraudCashEquiv', label: 'Cash-equivalent purchases', desc: 'Gift cards, money orders, crypto, money transfers' },
+                  { key: 'fraudSplits', label: 'Split transactions / threshold clustering', desc: 'Multiple charges just below an approval threshold' },
+                  { key: 'fraudPersonalSignals', label: 'Clear personal expense signals', desc: 'Family member names on receipts, personal addresses as destinations' },
+                ].map(({ key, label, desc }) => (
+                  <ToggleRow
+                    key={key}
+                    label={label}
+                    desc={desc}
+                    value={answers[key]}
+                    onChange={(v) => set(key, v)}
+                  />
+                ))}
 
-        <div className="mt-8">
-          <YesNoToggle label="Auto-close when employee provides clarification that resolves the issue?" id="autoCloseResolved" answers={answers} handleAnswer={handleAnswer} />
-        </div>
+                <NavButtons onBack={prevStep} onNext={nextStep} />
+              </div>
+            </div>
+          )}
 
-        <div className="flex gap-3 pt-6 border-t border-neutral-200 mt-8">
-          <button
-            onClick={prevStep}
-            className="h-10 px-4 rounded-xl bg-neutral-100 text-neutral-900 hover:bg-neutral-200 transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-300/50"
-          >
-            Back
-          </button>
-          <button
-            onClick={nextStep}
-            className="h-10 px-4 rounded-xl bg-neutral-950 text-neutral-50 hover:bg-neutral-900 shadow-sm transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-950/50"
-          >
-            Continue
-          </button>
+          {/* ── STEP 3: Spending Anomalies ── */}
+          {currentStep === 'spending-anomalies' && (
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+              <div className="px-8 py-7 border-b border-neutral-100">
+                <h2 className="text-2xl font-semibold text-neutral-950">Spending Anomalies</h2>
+                <p className="text-sm text-neutral-500 mt-1">
+                  Behavioral patterns that may indicate misuse even when individual transactions appear valid.
+                </p>
+              </div>
+              <div className="px-8 py-8 space-y-6">
+
+                <ToggleRow
+                  label="Historical spending spike"
+                  desc="Flag when an employee spends more than 2× their personal historical average in a period"
+                  value={answers.anomalyHistorical}
+                  onChange={(v) => set('anomalyHistorical', v)}
+                />
+
+                <div className="space-y-3">
+                  <ToggleRow
+                    label="Geographic mismatch"
+                    desc="Spend in a distant location with no associated travel context"
+                    value={answers.anomalyGeoMismatch}
+                    onChange={(v) => set('anomalyGeoMismatch', v)}
+                  />
+                  {answers.anomalyGeoMismatch && (
+                    <div className="ml-6">
+                      <AmountInput label="Flag above" value={answers.anomalyGeoAmount} onChange={(v) => set('anomalyGeoAmount', v)} />
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  <ToggleRow
+                    label="Late submissions"
+                    desc="Expenses submitted long after the transaction date"
+                    value={answers.anomalyLateSubmission}
+                    onChange={(v) => set('anomalyLateSubmission', v)}
+                  />
+                  {answers.anomalyLateSubmission && (
+                    <div className="ml-6">
+                      <AmountInput label="Flag if submitted more than" value={answers.anomalyLateDays} onChange={(v) => set('anomalyLateDays', v)} unit="days after transaction" />
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  <ToggleRow
+                    label="First-time vendor"
+                    desc="Spend with a vendor this employee has never used before"
+                    value={answers.anomalyNewVendor}
+                    onChange={(v) => set('anomalyNewVendor', v)}
+                  />
+                  {answers.anomalyNewVendor && (
+                    <div className="ml-6">
+                      <AmountInput label="Flag above" value={answers.anomalyNewVendorAmount} onChange={(v) => set('anomalyNewVendorAmount', v)} />
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  <ToggleRow
+                    label="Repeat violator"
+                    desc="Employee with a pattern of policy violations"
+                    value={answers.anomalyRepeatViolator}
+                    onChange={(v) => set('anomalyRepeatViolator', v)}
+                  />
+                  {answers.anomalyRepeatViolator && (
+                    <div className="ml-6 space-y-3">
+                      <AmountInput label="Flag after" value={answers.anomalyRepeatCount} onChange={(v) => set('anomalyRepeatCount', v)} unit="violations in a month" />
+                      <AmountInput label="Or cumulative out-of-policy spend above" value={answers.anomalyRepeatAmount} onChange={(v) => set('anomalyRepeatAmount', v)} />
+                    </div>
+                  )}
+                </div>
+
+                <NavButtons onBack={prevStep} onNext={nextStep} />
+              </div>
+            </div>
+          )}
+
+          {/* ── STEP 4: Review Thresholds ── */}
+          {currentStep === 'review-thresholds' && (
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+              <div className="px-8 py-7 border-b border-neutral-100">
+                <h2 className="text-2xl font-semibold text-neutral-950">Review Thresholds</h2>
+                <p className="text-sm text-neutral-500 mt-1">
+                  For cases created from out-of-policy spend, when do you want a human to review?
+                </p>
+              </div>
+              <div className="px-8 py-8 space-y-6">
+
+                <AmountInput
+                  label="Always escalate to human review if out-of-policy amount exceeds"
+                  value={answers.reviewHighAmount}
+                  onChange={(v) => set('reviewHighAmount', v)}
+                />
+
+                <div className="space-y-3">
+                  <p className="text-sm font-medium text-neutral-700">Also always require review for:</p>
+                  {[
+                    { key: 'reviewAlwaysFraud', label: 'Any fraud signal', desc: 'Duplicates, AI receipts, cash equivalents, personal signals' },
+                    { key: 'reviewAlwaysAnomaly', label: 'Spending anomalies', desc: 'Geographic mismatches, historical spikes' },
+                    { key: 'reviewAlwaysRepeat', label: 'Repeat violators', desc: 'Employees with a pattern of violations' },
+                  ].map(({ key, label, desc }) => (
+                    <ToggleRow key={key} label={label} desc={desc} value={answers[key]} onChange={(v) => set(key, v)} />
+                  ))}
+                </div>
+
+                <NavButtons onBack={prevStep} onNext={nextStep} />
+              </div>
+            </div>
+          )}
+
+          {/* ── STEP 5: Auto-Close Rules ── */}
+          {currentStep === 'auto-close' && (
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+              <div className="px-8 py-7 border-b border-neutral-100">
+                <h2 className="text-2xl font-semibold text-neutral-950">Auto-Close Rules</h2>
+                <p className="text-sm text-neutral-500 mt-1">
+                  When should cases be resolved without requiring a human to review?
+                </p>
+              </div>
+              <div className="px-8 py-8 space-y-6">
+
+                <AmountInput
+                  label="Auto-close out-of-policy spend under"
+                  value={answers.autoCloseAmount}
+                  onChange={(v) => set('autoCloseAmount', v)}
+                />
+
+                <ToggleRow
+                  label="Auto-close first-time procedural violations"
+                  desc="Missing receipt, vague description, incorrect budget assignment — on first occurrence only"
+                  value={answers.autoCloseFirstTime}
+                  onChange={(v) => set('autoCloseFirstTime', v)}
+                />
+
+                <ToggleRow
+                  label="Auto-close when employee resolves the issue"
+                  desc="Employee provides documentation or explanation that addresses the violation"
+                  value={answers.autoCloseResolved}
+                  onChange={(v) => set('autoCloseResolved', v)}
+                />
+
+                <AmountInput
+                  label="Escalate if employee doesn't respond within"
+                  value={answers.autoCloseNoResponseDays}
+                  onChange={(v) => set('autoCloseNoResponseDays', v)}
+                  unit="days"
+                />
+
+                <NavButtons onBack={prevStep} onNext={nextStep} nextLabel="Generate Documents" />
+              </div>
+            </div>
+          )}
+
+          {/* ── STEP 6: Results ── */}
+          {currentStep === 'results' && (
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+              <div className="px-8 py-7 border-b border-neutral-100">
+                <h2 className="text-2xl font-semibold text-neutral-950">Your Generated Documents</h2>
+                <p className="text-sm text-neutral-500 mt-1">Download and upload these to configure your audit and review agents.</p>
+              </div>
+              <div className="px-8 py-8 space-y-6">
+
+                <DocCard
+                  title="audit_rules.md"
+                  desc="Tells the audit agent what to flag — fraud signals and spending anomalies with risk levels."
+                  content={auditRules}
+                  filename="audit_rules.md"
+                  downloadFile={downloadFile}
+                />
+
+                <DocCard
+                  title="review_sop.md"
+                  desc="Tells the review agent when to escalate to a human and when to auto-close."
+                  content={reviewSOP}
+                  filename="review_sop.md"
+                  downloadFile={downloadFile}
+                />
+
+                <div className="pt-2">
+                  <button
+                    onClick={() => { setCurrentStepIndex(0); setPolicyFile(null) }}
+                    className="h-9 px-4 rounded-lg bg-neutral-100 text-neutral-700 text-sm font-medium hover:bg-neutral-200 transition-all active:scale-[0.98]"
+                  >
+                    Start over
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
-    </>
+    </div>
   )
 }
 
-// EscalationStep: Step 10 - escalation trigger configuration
-function EscalationStep({ answers, handleAnswer, nextStep, prevStep }) {
+// ── Shared Components ──
+
+function ToggleRow({ label, desc, value, onChange }) {
   return (
-    <>
-      <div className="px-10 py-8 border-b border-neutral-200">
-        <h2 className="text-3xl font-semibold text-neutral-950 mb-2">Step 10: Escalation Triggers</h2>
-        <p className="text-base text-neutral-600">Define when cases should be escalated to human review</p>
+    <div className="flex items-start justify-between gap-4">
+      <div className="flex-1">
+        <p className="text-sm font-medium text-neutral-900">{label}</p>
+        {desc && <p className="text-xs text-neutral-500 mt-0.5">{desc}</p>}
       </div>
-      <div className="px-10 py-10">
-        <h3 className="text-lg font-semibold text-neutral-950 mb-4">Amount-based escalation</h3>
-        <QuestionInput label="Always escalate to human review if amount exceeds" id="escalateAmount" answers={answers} handleAnswer={handleAnswer} />
-
-        <h3 className="text-lg font-semibold text-neutral-950 mt-8 mb-4">Pattern-based escalation</h3>
-        <QuestionInput label="Escalate repeat violations after X occurrences" id="escalateRepeatsCount" answers={answers} handleAnswer={handleAnswer} type="number" unit="occurrences" />
-        <QuestionInput label="Escalate cumulative violations when total exceeds" id="escalateCumulativeAmount" answers={answers} handleAnswer={handleAnswer} />
-
-        <h3 className="text-lg font-semibold text-neutral-950 mt-8 mb-4">Type-based escalation</h3>
-        <div className="p-4 bg-red-50 rounded-lg border border-red-400">
-          <p className="text-sm font-semibold text-red-900 mb-2">
-            Always escalate these types:
-          </p>
-          <ul className="m-0 pl-5 text-sm text-red-900">
-            <li>Suspected fraud (duplicates, AI receipts, split transactions)</li>
-            <li>Prohibited merchant categories</li>
-            <li>Receipt/claim mismatch</li>
-          </ul>
-        </div>
-
-        <h3 className="text-lg font-semibold text-neutral-950 mt-8 mb-4">Response time</h3>
-        <QuestionInput label="Escalate if employee does not respond within X days" id="escalateNoResponseDays" answers={answers} handleAnswer={handleAnswer} type="number" unit="days" />
-
-        <div className="flex gap-3 pt-6 border-t border-neutral-200 mt-8">
-          <button
-            onClick={prevStep}
-            className="h-10 px-4 rounded-xl bg-neutral-100 text-neutral-900 hover:bg-neutral-200 transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-300/50"
-          >
-            Back
-          </button>
-          <button
-            onClick={nextStep}
-            className="h-10 px-4 rounded-xl bg-neutral-950 text-neutral-50 hover:bg-neutral-900 shadow-sm transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-950/50"
-          >
-            Continue to Results
-          </button>
-        </div>
+      <div className="flex gap-2 shrink-0 mt-0.5">
+        <button
+          onClick={() => onChange(true)}
+          className={cn(
+            "h-7 px-3 rounded-md text-xs font-medium transition-all",
+            value === true
+              ? "bg-neutral-950 text-white"
+              : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+          )}
+        >
+          Yes
+        </button>
+        <button
+          onClick={() => onChange(false)}
+          className={cn(
+            "h-7 px-3 rounded-md text-xs font-medium transition-all",
+            value === false
+              ? "bg-neutral-950 text-white"
+              : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+          )}
+        >
+          No
+        </button>
       </div>
-    </>
+    </div>
   )
 }
 
-// ResultsStep: Step 8 - document preview and download
-function ResultsStep({ auditRules, reviewSOP, downloadFile, onReset }) {
+function AmountInput({ label, value, onChange, unit = 'USD' }) {
   return (
-    <>
-      <div className="px-10 py-8 border-b border-neutral-200">
-        <h2 className="text-3xl font-semibold text-neutral-950 mb-2">Your Generated Documents</h2>
-        <p className="text-base text-neutral-600">Download your custom audit rules and review instructions</p>
+    <div>
+      <label className="block text-sm font-medium text-neutral-700 mb-1.5">{label}</label>
+      <div className="flex items-center gap-2">
+        {unit === 'USD' && <span className="text-neutral-500 text-sm">$</span>}
+        <input
+          type="number"
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="w-32 h-9 rounded-md border border-neutral-200 bg-white px-3 text-sm text-neutral-900 shadow-xs transition-colors focus-visible:outline-none focus-visible:border-neutral-900 focus-visible:ring-[3px] focus-visible:ring-neutral-900/10"
+        />
+        {unit !== 'USD' && <span className="text-neutral-500 text-sm">{unit}</span>}
       </div>
-      <div className="px-10 py-10">
-        <div className="mb-8">
-          <h3 className="text-lg font-semibold text-neutral-950 mb-3">1. audit_rules.md</h3>
-          <p className="text-sm text-neutral-600 mb-4">
-            Defines what creates cases (fraud detection, spending patterns, category-specific violations)
-          </p>
-          <button
-            onClick={() => downloadFile(auditRules, 'audit_rules.md')}
-            className="h-10 px-4 rounded-xl bg-neutral-950 text-neutral-50 hover:bg-neutral-900 shadow-sm transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-950/50 w-full mb-4"
-          >
-            Download audit_rules.md
-          </button>
-          <details className="text-sm text-neutral-600 p-4 bg-neutral-50 rounded-lg">
-            <summary className="cursor-pointer font-semibold mb-3">
-              Preview document
-            </summary>
-            <pre className="whitespace-pre-wrap text-xs text-neutral-700 leading-relaxed">
-              {auditRules}
-            </pre>
-          </details>
-        </div>
+    </div>
+  )
+}
 
-        <div className="mb-8">
-          <h3 className="text-lg font-semibold text-neutral-950 mb-3">2. review_sop.md</h3>
-          <p className="text-sm text-neutral-600 mb-4">
-            Defines case handling (auto-close criteria, escalation triggers, response time requirements)
-          </p>
-          <button
-            onClick={() => downloadFile(reviewSOP, 'review_sop.md')}
-            className="h-10 px-4 rounded-xl bg-neutral-950 text-neutral-50 hover:bg-neutral-900 shadow-sm transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-950/50 w-full mb-4"
-          >
-            Download review_sop.md
-          </button>
-          <details className="text-sm text-neutral-600 p-4 bg-neutral-50 rounded-lg">
-            <summary className="cursor-pointer font-semibold mb-3">
-              Preview document
-            </summary>
-            <pre className="whitespace-pre-wrap text-xs text-neutral-700 leading-relaxed">
-              {reviewSOP}
-            </pre>
-          </details>
-        </div>
+function NavButtons({ onBack, onNext, nextLabel = 'Continue' }) {
+  return (
+    <div className="flex gap-3 pt-6 border-t border-neutral-100 mt-2">
+      <button
+        onClick={onBack}
+        className="h-10 px-4 rounded-xl bg-neutral-100 text-neutral-700 text-sm font-medium hover:bg-neutral-200 transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-300/50"
+      >
+        Back
+      </button>
+      <button
+        onClick={onNext}
+        className="h-10 px-5 rounded-xl bg-neutral-950 text-neutral-50 text-sm font-medium hover:bg-neutral-800 shadow-sm transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-950/30"
+      >
+        {nextLabel}
+      </button>
+    </div>
+  )
+}
 
-        <div className="flex gap-3 pt-6 border-t border-neutral-200 mt-8">
-          <button
-            onClick={onReset}
-            className="h-10 px-4 rounded-xl bg-neutral-100 text-neutral-900 hover:bg-neutral-200 transition-all duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-300/50"
-          >
-            Start Over
-          </button>
+function DocCard({ title, desc, content, filename, downloadFile }) {
+  return (
+    <div className="border border-neutral-200 rounded-xl overflow-hidden">
+      <div className="px-5 py-4 bg-neutral-50 border-b border-neutral-200 flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-semibold text-neutral-900">{title}</p>
+          <p className="text-xs text-neutral-500 mt-0.5">{desc}</p>
         </div>
+        <button
+          onClick={() => downloadFile(content, filename)}
+          className="shrink-0 h-8 px-3 rounded-lg bg-neutral-950 text-white text-xs font-medium hover:bg-neutral-800 transition-all active:scale-[0.98]"
+        >
+          Download
+        </button>
       </div>
-    </>
+      <details className="group">
+        <summary className="px-5 py-3 text-xs font-medium text-neutral-500 cursor-pointer hover:text-neutral-700 hover:bg-neutral-50 transition-colors list-none flex items-center gap-1.5">
+          <svg className="w-3.5 h-3.5 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+          Preview
+        </summary>
+        <pre className="px-5 py-4 text-xs text-neutral-600 bg-white whitespace-pre-wrap leading-relaxed border-t border-neutral-100 font-mono">
+          {content}
+        </pre>
+      </details>
+    </div>
   )
 }
 
